@@ -1,0 +1,39 @@
+# Node / Cloud Functions
+node_modules/
+functions/node_modules/
+functions/lib/
+functions/.env
+functions/.runtimeconfig.json
+
+# Firebase
+.firebase/
+firebase-debug.log
+firestore-debug.log
+*-debug.log
+
+# Secrets
+.env
+.env.*
+!.env.example
+*.pem
+service-account*.json
+
+# Build
+dist/
+build/
+.cache/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*~
+
+# Misc
+.tmp/
+*.log

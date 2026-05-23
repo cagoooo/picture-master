@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>試卷出題配圖生成大師 · 黑白線稿一鍵生</title>
+  <meta name="description" content="輸入標題、角色、對話、背景，一鍵生成黑白線稿圖，適合學習單、試卷配圖、著色頁。Made by 阿凱老師（石門國小）">
+  <meta name="theme-color" content="#4f46e5">
+
+  <!-- OG tags -->
+  <meta property="og:title" content="試卷出題配圖生成大師">
+  <meta property="og:description" content="輸入幾個字，一鍵產生黑白線稿插圖，學習單 / 試卷 / 著色頁一站搞定。">
+  <meta property="og:type" content="website">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <style>
+    html, body { font-family: 'Noto Sans TC', system-ui, -apple-system, "Segoe UI", "Microsoft JhengHei", sans-serif; }
+    .ink-pattern {
+      background-image: radial-gradient(circle at 1px 1px, rgba(15, 23, 42, 0.07) 1px, transparent 0);
+      background-size: 22px 22px;
+    }
+    .fade-in { animation: fadeIn .35s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    details[open] summary .chev { transform: rotate(90deg); }
+    .chev { transition: transform .2s; display: inline-block; }
+  </style>
+</head>
+<body class="min-h-screen bg-slate-50 text-slate-900 ink-pattern">
+  <div class="max-w-5xl mx-auto px-4 py-8 md:py-12">
+
+    <!-- Header -->
+    <header class="text-center mb-8">
+      <div class="inline-flex items-center gap-2 px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-xs font-bold mb-3">
+        <span>✨</span>
+        <span>Powered by Google Imagen</span>
+      </div>
+      <h1 class="text-4xl md:text-5xl font-black tracking-tight">
+        📝 試卷出題配圖生成大師
+      </h1>
+      <p class="text-slate-600 mt-3 text-base md:text-lg">
+        極簡黑白線稿風 · 學習單 / 試卷配圖 / 著色頁一站搞定
+      </p>
+    </header>
+
+    <!-- Form Card -->
+    <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8 mb-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div>
+          <label class="block text-sm font-bold text-slate-700 mb-2">
+            📌 標題 <span class="text-slate-400 font-normal">（選填）</span>
+          </label>
+          <input id="f-title" type="text" placeholder="例：Science Class"
+            class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition">
+          <p class="text-xs text-slate-400 mt-1">會以大寫粗體放在圖片上方</p>
+        </div>
+        <div>
+          <label class="block text-sm font-bold text-slate-700 mb-2">
+            💬 對話內容 <span class="text-slate-400 font-normal">（選填）</span>
+          </label>
+          <input id="f-dialogue" type="text" placeholder="例：Look at this!"
+            class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition">
+          <p class="text-xs text-slate-400 mt-1">會放在對話氣泡裡，指向角色</p>
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-sm font-bold text-slate-700 mb-2">
+            👤 角色描述 <span class="text-red-500">*</span>
+          </label>
+          <textarea id="f-character" rows="2" placeholder="例：一位戴眼鏡的女老師指著黑板，手上拿著一本書"
+            class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition resize-none"></textarea>
+          <p class="text-xs text-slate-400 mt-1">主角是誰、做什麼動作（必填）</p>
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-sm font-bold text-slate-700 mb-2">
+            🌅 背景場景 <span class="text-slate-400 font-normal">（選填）</span>
+          </label>
+          <input id="f-background" type="text" placeholder="例：教室，黑板上有英文字"
+            class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition">
+        </div>
+      </div>
+
+      <!-- Examples -->
+      <div class="flex flex-wrap gap-2 mt-5 items-center">
+        <span class="text-sm text-slate-500 mr-1">🎲 載入範例：</span>
+        <button data-example="0" class="example-btn px-3 py-1.5 text-sm bg-slate-100 hover:bg-indigo-100 hover:text-indigo-700 rounded-full transition font-medium">📚 Science Class</button>
+        <button data-example="1" class="example-btn px-3 py-1.5 text-sm bg-slate-100 hover:bg-indigo-100 hover:text-indigo-700 rounded-full transition font-medium">🐷 Farm Life</button>
+        <button data-example="2" class="example-btn px-3 py-1.5 text-sm bg-slate-100 hover:bg-indigo-100 hover:text-indigo-700 rounded-full transition font-medium">➗ 數學課</button>
+        <button data-example="3" class="example-btn px-3 py-1.5 text-sm bg-slate-100 hover:bg-indigo-100 hover:text-indigo-700 rounded-full transition font-medium">🏃 運動會</button>
+      </div>
+
+      <!-- CTA -->
+      <div class="flex flex-col sm:flex-row gap-3 mt-6">
+        <button id="btn-generate"
+          class="flex-1 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold py-3.5 px-6 rounded-xl shadow-sm transition flex items-center justify-center gap-2 text-base">
+          <span>🎨 生成插畫（2 張）</span>
+          <span id="quota-label" class="text-xs bg-white/20 px-2 py-0.5 rounded-full font-normal"></span>
+        </button>
+        <button id="btn-clear"
+          class="sm:w-auto bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-3.5 px-6 rounded-xl transition">
+          🗑️ 清空
+        </button>
+      </div>
+
+      <!-- Mode indicator -->
+      <div id="mode-indicator" class="mt-4 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3 hidden">
+        ⚠️ <strong>本機預覽模式</strong>：後端 Cloud Functions 尚未部署，生成的圖片為佔位 SVG。部署到 GitHub Pages 後會自動接 Imagen 4 真實生圖。
+      </div>
+    </section>
+
+    <!-- Prompt Preview -->
+    <details class="bg-white rounded-2xl shadow-sm border border-slate-200 mb-6">
+      <summary class="cursor-pointer p-5 font-bold text-slate-700 flex items-center justify-between hover:bg-slate-50 rounded-2xl">
+        <span><span class="chev">▶</span>&nbsp;&nbsp;合成的 DALL-E / Imagen Prompt</span>
+        <span class="text-xs text-slate-500 font-normal">點開預覽 + 複製</span>
+      </summary>
+      <div class="px-5 pb-5">
+        <pre id="prompt-preview" class="bg-slate-900 text-emerald-300 text-xs leading-relaxed p-4 rounded-lg overflow-x-auto whitespace-pre-wrap break-words font-mono"></pre>
+        <div class="flex gap-2 mt-3">
+          <button id="btn-copy-prompt"
+            class="bg-slate-700 hover:bg-slate-800 text-white text-sm font-medium py-2 px-4 rounded-lg transition">
+            📋 複製 Prompt
+          </button>
+          <a href="https://chat.openai.com/" target="_blank" rel="noopener"
+            class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium py-2 px-4 rounded-lg transition">
+            開 ChatGPT
+          </a>
+          <a href="https://www.bing.com/images/create" target="_blank" rel="noopener"
+            class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium py-2 px-4 rounded-lg transition">
+            開 Bing Image Creator
+          </a>
+        </div>
+        <p class="text-xs text-slate-500 mt-3">
+          💡 也可以複製 prompt 貼到其他 AI 工具自己生圖，本工具會幫你套用最佳化的「黑白線稿基因」。
+        </p>
+      </div>
+    </details>
+
+    <!-- Loading -->
+    <div id="loading" class="hidden bg-white rounded-2xl shadow-sm border border-slate-200 p-8 mb-6 text-center fade-in">
+      <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-slate-200 border-t-indigo-600"></div>
+      <p class="mt-4 text-slate-600 font-medium">生成中… 大約需 10-20 秒</p>
+      <p class="text-xs text-slate-400 mt-1">Imagen 正在繪製，請耐心等候</p>
+    </div>
+
+    <!-- Error -->
+    <div id="error" class="hidden bg-red-50 border border-red-200 text-red-800 rounded-2xl p-5 mb-6 fade-in">
+      <p class="font-bold flex items-center gap-2">❌ <span id="error-msg"></span></p>
+    </div>
+
+    <!-- Results -->
+    <section id="results-section" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8 mb-6 hidden fade-in">
+      <h2 class="text-xl font-black mb-4 flex items-center gap-2">
+        🖼️ 生成結果
+        <span id="result-status" class="text-sm font-normal text-slate-500"></span>
+      </h2>
+      <div id="image-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+      <p class="text-xs text-slate-400 mt-4 text-center">
+        不滿意？修改描述後點「生成插畫」可重生 · 每次生成消耗 1 次額度
+      </p>
+    </section>
+
+    <!-- About -->
+    <section class="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl p-6 md:p-8 mb-6 border border-indigo-100">
+      <h2 class="text-xl font-black mb-4">💡 這個工具能做什麼？</h2>
+      <ul class="space-y-2 text-slate-700 text-sm md:text-base">
+        <li class="flex gap-2"><span class="text-indigo-600 font-bold">✓</span><span>學習單、試卷需要插圖，但找不到合適的免費圖？輸入幾個字一鍵生成。</span></li>
+        <li class="flex gap-2"><span class="text-indigo-600 font-bold">✓</span><span>產出純黑白線稿風，列印不吃墨水，也適合學生著色或補充細節。</span></li>
+        <li class="flex gap-2"><span class="text-indigo-600 font-bold">✓</span><span>支援大標題 + 對話氣泡，做漫畫式情境題、英文對話練習都好用。</span></li>
+        <li class="flex gap-2"><span class="text-indigo-600 font-bold">✓</span><span>免註冊免登入，每天 30 張免費額度。</span></li>
+      </ul>
+    </section>
+
+    <!-- Footer -->
+    <footer class="text-center py-8 text-sm text-slate-500">
+      <p class="mb-2">
+        Made with ❤️ by
+        <a href="https://www.smes.tyc.edu.tw/modules/tadnews/page.php?ncsn=11&nsn=16#a5"
+           target="_blank" rel="noopener"
+           class="font-bold text-indigo-600 hover:text-indigo-800 underline decoration-2 underline-offset-2">
+          阿凱老師
+        </a>
+        @ 桃園市龍潭區石門國民小學
+      </p>
+      <p class="text-xs text-slate-400">
+        © 2026 · 圖像由 Google Imagen 生成 · <span id="version-tag">v0.1.0</span>
+      </p>
+    </footer>
+  </div>
+
+  <script>
+  (() => {
+    'use strict';
+
+    const VERSION = 'v0.1.0';
+    const DAILY_QUOTA = 30;
+
+    const EXAMPLES = [
+      {
+        title: 'Science Class',
+        character: '一位戴眼鏡的女老師指著黑板，手上拿著一本書',
+        dialogue: 'Look at this!',
+        background: '教室，黑板上有英文字',
+      },
+      {
+        title: 'Farm Life',
+        character: '一隻可愛的小豬跟一隻米格魯小狗並排站著',
+        dialogue: 'Hello!',
+        background: '農場，遠處有風車',
+      },
+      {
+        title: '',
+        character: '一位戴眼鏡的小學男生坐在桌前算數學',
+        dialogue: '',
+        background: '書桌上有作業簿、鉛筆與計算機',
+      },
+      {
+        title: '運動會',
+        character: '兩位小學生在跑道上賽跑，後方有同學加油',
+        dialogue: '加油！',
+        background: '操場，遠方有觀眾席',
+      },
+    ];
+
+    const $ = (id) => document.getElementById(id);
+    const fTitle = $('f-title'),
+          fChar  = $('f-character'),
+          fDlg   = $('f-dialogue'),
+          fBg    = $('f-background'),
+          promptPreview = $('prompt-preview');
+
+    // ===== Prompt Synthesis =====
+    function buildPrompt() {
+      const title = fTitle.value.trim();
+      const character = fChar.value.trim();
+      const dialogue = fDlg.value.trim();
+      const background = fBg.value.trim();
+
+      const lines = [
+        'A minimalist black and white vector line art, coloring book style.',
+      ];
+
+      const textElements = [];
+      if (title) {
+        textElements.push(`A large, bold title "${title.toUpperCase()}" at the top center.`);
+      }
+      if (dialogue) {
+        if (character) {
+          textElements.push(`A clean speech bubble with a clear pointing arrow towards the ${character} containing the text "${dialogue}".`);
+        } else {
+          textElements.push(`A clean speech bubble containing the text "${dialogue}".`);
+        }
+      }
+      if (textElements.length) {
+        lines.push('Text Elements: ' + textElements.join(' '));
+      }
+
+      if (character) {
+        lines.push(`Subject: ${character}.`);
+      }
+      if (background) {
+        lines.push(`Setting: ${background}.`);
+      }
+
+      lines.push('Style: Thick bold black outlines, pure white background, no shading, no gradients, no colors, no gray scales, high contrast. Professional comic-strip layout. Suitable as a coloring page for kids. No frame around the image.');
+      return lines.join('\n');
+    }
+
+    function refreshPrompt() {
+      promptPreview.textContent = buildPrompt();
+    }
+
+    [fTitle, fChar, fDlg, fBg].forEach(el => {
+      el.addEventListener('input', refreshPrompt);
+    });
+    refreshPrompt();
+
+    // ===== Examples =====
+    document.querySelectorAll('.example-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const ex = EXAMPLES[+btn.dataset.example];
+        fTitle.value = ex.title;
+        fChar.value = ex.character;
+        fDlg.value = ex.dialogue;
+        fBg.value = ex.background;
+        refreshPrompt();
+        fChar.focus();
+      });
+    });
+
+    // ===== Clear =====
+    $('btn-clear').addEventListener('click', () => {
+      [fTitle, fChar, fDlg, fBg].forEach(el => el.value = '');
+      refreshPrompt();
+      $('results-section').classList.add('hidden');
+      hideError();
+    });
+
+    // ===== Copy Prompt =====
+    $('btn-copy-prompt').addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(buildPrompt());
+        const btn = $('btn-copy-prompt');
+        const orig = btn.innerHTML;
+        btn.innerHTML = '✅ 已複製！';
+        btn.classList.add('bg-emerald-600');
+        setTimeout(() => {
+          btn.innerHTML = orig;
+          btn.classList.remove('bg-emerald-600');
+        }, 1500);
+      } catch (e) {
+        alert('複製失敗，請手動全選 prompt 文字');
+      }
+    });
+
+    // ===== Quota (local, per-day) =====
+    function todayKey() {
+      return 'pm-quota-' + new Date().toISOString().slice(0, 10);
+    }
+    function getQuotaUsed() {
+      return +(localStorage.getItem(todayKey()) || 0);
+    }
+    function incQuota() {
+      localStorage.setItem(todayKey(), getQuotaUsed() + 1);
+    }
+    function refreshQuotaLabel() {
+      const remain = Math.max(0, DAILY_QUOTA - getQuotaUsed());
+      $('quota-label').textContent = `今日剩 ${remain} 次`;
+    }
+    refreshQuotaLabel();
+
+    // ===== Backend Mode Detection =====
+    const IS_LOCAL = ['localhost', '127.0.0.1', ''].includes(location.hostname);
+    if (IS_LOCAL) {
+      $('mode-indicator').classList.remove('hidden');
+    }
+
+    // ===== Generate =====
+    $('btn-generate').addEventListener('click', async () => {
+      const character = fChar.value.trim();
+      if (!character) {
+        showError('請至少填寫「角色描述」');
+        fChar.focus();
+        return;
+      }
+      if (getQuotaUsed() >= DAILY_QUOTA) {
+        showError(`今日 ${DAILY_QUOTA} 次額度已用完，請明日再試`);
+        return;
+      }
+
+      hideError();
+      $('results-section').classList.add('hidden');
+      $('loading').classList.remove('hidden');
+      $('btn-generate').disabled = true;
+
+      try {
+        const prompt = buildPrompt();
+        const images = await callBackend(prompt);
+        renderImages(images);
+        incQuota();
+        refreshQuotaLabel();
+      } catch (e) {
+        console.error(e);
+        showError(e.message || '生成失敗，請稍後再試');
+      } finally {
+        $('loading').classList.add('hidden');
+        $('btn-generate').disabled = false;
+      }
+    });
+
+    function showError(msg) {
+      $('error-msg').textContent = msg;
+      $('error').classList.remove('hidden');
+    }
+    function hideError() {
+      $('error').classList.add('hidden');
+    }
+
+    // ===== Render Images =====
+    function renderImages(images) {
+      const grid = $('image-grid');
+      grid.innerHTML = '';
+      const ts = Date.now();
+      images.forEach((src, i) => {
+        const card = document.createElement('div');
+        card.className = 'bg-slate-50 rounded-xl border border-slate-200 overflow-hidden fade-in';
+        card.innerHTML = `
+          <div class="bg-white">
+            <img src="${src}" alt="生成結果 ${i+1}" class="w-full aspect-square object-contain">
+          </div>
+          <div class="p-3 flex gap-2">
+            <a href="${src}" download="picture-master-${ts}-${i+1}.png"
+              class="flex-1 text-center bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold py-2 px-3 rounded-lg transition">
+              💾 下載 PNG
+            </a>
+            <button data-img="${src}" class="open-new bg-slate-200 hover:bg-slate-300 text-slate-700 text-sm font-medium py-2 px-3 rounded-lg transition">
+              🔍 放大看
+            </button>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+      grid.querySelectorAll('.open-new').forEach(btn => {
+        btn.addEventListener('click', () => window.open(btn.dataset.img, '_blank'));
+      });
+      $('results-section').classList.remove('hidden');
+      $('result-status').textContent = `（共 ${images.length} 張，點下載按鈕儲存到電腦）`;
+      $('results-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    // ===== Backend Call =====
+    // Stage 2 將替換為真實 Cloud Functions endpoint
+    const BACKEND_URL = 'https://us-central1-picture-master.cloudfunctions.net/generateImage';
+
+    async function callBackend(prompt) {
+      if (IS_LOCAL) {
+        // 本機預覽模式：產 2 張 SVG 佔位圖
+        await new Promise(r => setTimeout(r, 1200));
+        return [makeMockSVG(prompt, 1), makeMockSVG(prompt, 2)];
+      }
+
+      // TODO Stage 2：加 Turnstile token
+      const res = await fetch(BACKEND_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          data: {
+            prompt,
+            turnstileToken: window.__turnstileToken || null,
+          },
+        }),
+      });
+
+      if (!res.ok) {
+        const txt = await res.text().catch(() => '');
+        throw new Error(`後端錯誤 ${res.status}：${txt.slice(0, 120) || '未知'}`);
+      }
+      const json = await res.json();
+      if (json.error) throw new Error(json.error.message || '後端回傳錯誤');
+      return json.result.images;
+    }
+
+    function makeMockSVG(prompt, idx) {
+      // 簡略呈現黑白線稿風格的 demo 圖
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <rect width="400" height="400" fill="white"/>
+  <text x="200" y="50" font-family="Arial Black, sans-serif" font-size="26" font-weight="900" text-anchor="middle" fill="black">DEMO #${idx}</text>
+  <rect x="60" y="80" width="280" height="50" rx="25" fill="white" stroke="black" stroke-width="3"/>
+  <text x="200" y="112" font-family="Arial, sans-serif" font-size="16" font-weight="700" text-anchor="middle" fill="black">"Hello, World!"</text>
+  <path d="M 195 130 L 175 165 L 215 165 Z" fill="white" stroke="black" stroke-width="3"/>
+  <circle cx="200" cy="225" r="32" fill="white" stroke="black" stroke-width="4"/>
+  <circle cx="190" cy="220" r="3" fill="black"/>
+  <circle cx="210" cy="220" r="3" fill="black"/>
+  <path d="M 188 235 Q 200 245 212 235" fill="none" stroke="black" stroke-width="3" stroke-linecap="round"/>
+  <path d="M 200 257 L 200 320" stroke="black" stroke-width="4" stroke-linecap="round"/>
+  <path d="M 170 285 L 200 270 L 230 285" fill="none" stroke="black" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 180 320 L 175 360" stroke="black" stroke-width="4" stroke-linecap="round"/>
+  <path d="M 220 320 L 225 360" stroke="black" stroke-width="4" stroke-linecap="round"/>
+  <text x="200" y="385" font-family="monospace" font-size="9" text-anchor="middle" fill="#999">本機預覽佔位圖 · 部署後會換成 Imagen 真實生成</text>
+</svg>`;
+      return 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
+    }
+
+    // ===== Version =====
+    $('version-tag').textContent = VERSION;
+  })();
+  </script>
+</body>
+</html>
