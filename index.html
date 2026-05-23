@@ -16,6 +16,15 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+
+  <!-- Cloudflare Turnstile (loaded only when sitekey is real) -->
+  <script>
+    window.__PM_CONFIG = {
+      // 部署時將 PLACEHOLDER 換成 Cloudflare Turnstile 的 site key
+      TURNSTILE_SITE_KEY: 'PLACEHOLDER_NOT_CONFIGURED',
+      BACKEND_URL: 'https://us-central1-picture-master.cloudfunctions.net/generateImage',
+    };
+  </script>
   <style>
     html, body { font-family: 'Noto Sans TC', system-ui, -apple-system, "Segoe UI", "Microsoft JhengHei", sans-serif; }
     .ink-pattern {
@@ -88,6 +97,11 @@
         <button data-example="1" class="example-btn px-3 py-1.5 text-sm bg-slate-100 hover:bg-indigo-100 hover:text-indigo-700 rounded-full transition font-medium">🐷 Farm Life</button>
         <button data-example="2" class="example-btn px-3 py-1.5 text-sm bg-slate-100 hover:bg-indigo-100 hover:text-indigo-700 rounded-full transition font-medium">➗ 數學課</button>
         <button data-example="3" class="example-btn px-3 py-1.5 text-sm bg-slate-100 hover:bg-indigo-100 hover:text-indigo-700 rounded-full transition font-medium">🏃 運動會</button>
+      </div>
+
+      <!-- Turnstile widget -->
+      <div id="turnstile-wrap" class="mt-5 hidden">
+        <div id="turnstile-widget"></div>
       </div>
 
       <!-- CTA -->
@@ -336,6 +350,68 @@
       $('mode-indicator').classList.remove('hidden');
     }
 
+    // ===== Cloudflare Turnstile =====
+    const CFG = window.__PM_CONFIG || {};
+    const TURNSTILE_ENABLED =
+      !IS_LOCAL &&
+      CFG.TURNSTILE_SITE_KEY &&
+      CFG.TURNSTILE_SITE_KEY !== 'PLACEHOLDER_NOT_CONFIGURED';
+
+    let turnstileWidgetId = null;
+    window.__turnstileToken = null;
+
+    window.__onTurnstileLoad = function () {
+      try {
+        turnstileWidgetId = turnstile.render('#turnstile-widget', {
+          sitekey: CFG.TURNSTILE_SITE_KEY,
+          callback: (token) => {
+            window.__turnstileToken = token;
+          },
+          'expired-callback': () => {
+            window.__turnstileToken = null;
+          },
+          'error-callback': () => {
+            window.__turnstileToken = null;
+          },
+          theme: 'light',
+          size: 'flexible',
+        });
+      } catch (e) {
+        console.error('Turnstile render failed', e);
+      }
+    };
+
+    function loadTurnstile() {
+      if (!TURNSTILE_ENABLED) return;
+      $('turnstile-wrap').classList.remove('hidden');
+      const s = document.createElement('script');
+      s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?onload=__onTurnstileLoad&render=explicit';
+      s.async = true;
+      s.defer = true;
+      document.head.appendChild(s);
+    }
+    loadTurnstile();
+
+    async function waitForTurnstileToken(timeoutMs = 10000) {
+      if (!TURNSTILE_ENABLED) return null;
+      const start = Date.now();
+      while (Date.now() - start < timeoutMs) {
+        if (window.__turnstileToken) return window.__turnstileToken;
+        await new Promise((r) => setTimeout(r, 100));
+      }
+      throw new Error('人機驗證超時，請重新整理頁面');
+    }
+
+    function resetTurnstile() {
+      if (!TURNSTILE_ENABLED || turnstileWidgetId === null) return;
+      try {
+        turnstile.reset(turnstileWidgetId);
+        window.__turnstileToken = null;
+      } catch (e) {
+        console.warn('Turnstile reset failed', e);
+      }
+    }
+
     // ===== Generate =====
     $('btn-generate').addEventListener('click', async () => {
       const character = fChar.value.trim();
@@ -356,13 +432,16 @@
 
       try {
         const prompt = buildPrompt();
-        const images = await callBackend(prompt);
+        const token = await waitForTurnstileToken();
+        const images = await callBackend(prompt, token);
         renderImages(images);
         incQuota();
         refreshQuotaLabel();
+        resetTurnstile();
       } catch (e) {
         console.error(e);
         showError(e.message || '生成失敗，請稍後再試');
+        resetTurnstile();
       } finally {
         $('loading').classList.add('hidden');
         $('btn-generate').disabled = false;
@@ -410,34 +489,33 @@
     }
 
     // ===== Backend Call =====
-    // Stage 2 將替換為真實 Cloud Functions endpoint
-    const BACKEND_URL = 'https://us-central1-picture-master.cloudfunctions.net/generateImage';
-
-    async function callBackend(prompt) {
+    async function callBackend(prompt, turnstileToken) {
       if (IS_LOCAL) {
         // 本機預覽模式：產 2 張 SVG 佔位圖
-        await new Promise(r => setTimeout(r, 1200));
+        await new Promise((r) => setTimeout(r, 1200));
         return [makeMockSVG(prompt, 1), makeMockSVG(prompt, 2)];
       }
 
-      // TODO Stage 2：加 Turnstile token
-      const res = await fetch(BACKEND_URL, {
+      const backendUrl = CFG.BACKEND_URL;
+      if (!backendUrl) throw new Error('後端 URL 未設定');
+
+      const res = await fetch(backendUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          data: {
-            prompt,
-            turnstileToken: window.__turnstileToken || null,
-          },
+          data: { prompt, turnstileToken },
         }),
       });
 
-      if (!res.ok) {
-        const txt = await res.text().catch(() => '');
-        throw new Error(`後端錯誤 ${res.status}：${txt.slice(0, 120) || '未知'}`);
+      let json;
+      try {
+        json = await res.json();
+      } catch {
+        throw new Error(`後端錯誤 ${res.status}：回應非 JSON`);
       }
-      const json = await res.json();
-      if (json.error) throw new Error(json.error.message || '後端回傳錯誤');
+      if (!res.ok || json.error) {
+        throw new Error(json?.error?.message || `後端錯誤 ${res.status}`);
+      }
       return json.result.images;
     }
 
