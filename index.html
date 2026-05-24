@@ -1471,6 +1471,16 @@
       let json;
       try { json = await res.json(); }
       catch { throw new Error(`後端錯誤 ${res.status}：回應非 JSON`); }
+
+      // 後端配額爆了（per-IP Firestore quota，整個 IP 共算，比前端 per-browser 嚴格）
+      // → 前端 localStorage 同步拉到上限，按鈕立刻變灰，避免使用者繼續按
+      if (res.status === 429) {
+        localStorage.setItem(todayKey(), String(DAILY_QUOTA));
+        refreshQuotaUI();
+        const backendMsg = json?.error?.message || '配額已用滿';
+        throw new Error(`本 IP 今日配額已用滿（後端記錄）— ${backendMsg}。可能因為同網路其他人也用過。`);
+      }
+
       if (!res.ok || json.error) {
         throw new Error(json?.error?.message || `後端錯誤 ${res.status}`);
       }
