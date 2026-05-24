@@ -573,6 +573,71 @@
     .prompt-panel .body .action:hover{background:rgba(31,28,20,.08)}
     .prompt-panel .body .action.solid:hover{background:#000}
 
+    /* =========================================================
+       History strip — localStorage 最近 10 筆壓縮縮圖
+       ========================================================= */
+    .history-strip{
+      max-width:1480px;margin:0 auto;padding:0 32px 24px;
+      position:relative;z-index:1;
+    }
+    .history-head{
+      display:flex;align-items:baseline;gap:14px;
+      margin-bottom:14px;flex-wrap:wrap;
+    }
+    .history-head h4{
+      font-family:var(--font-chalk);font-size:26px;color:var(--chalk-yellow);
+      margin:0;letter-spacing:.02em;line-height:1;
+    }
+    .history-head .hint{
+      font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;
+      color:#8a857a;text-transform:uppercase;flex:1;
+    }
+    .btn-clear-history{
+      background:transparent;border:1px dashed rgba(207,202,176,.3);
+      color:var(--chalk-soft);font-family:var(--font-mono);font-size:10px;
+      letter-spacing:.14em;text-transform:uppercase;
+      padding:6px 12px;border-radius:2px;cursor:pointer;
+    }
+    .btn-clear-history:hover{border-color:var(--chalk-red);color:var(--chalk-red)}
+
+    .history-grid{
+      display:grid;grid-template-columns:repeat(auto-fill, minmax(180px, 1fr));
+      gap:14px;
+    }
+    .history-card{
+      background:var(--paper);border-radius:3px;overflow:hidden;
+      cursor:pointer;border:1px solid var(--paper-line);
+      padding:8px;display:flex;flex-direction:column;gap:6px;
+      text-align:left;font:inherit;
+      transition:transform .12s, box-shadow .12s, border-color .12s;
+    }
+    .history-card:hover{
+      transform:translateY(-2px);
+      box-shadow:0 6px 14px -4px rgba(0,0,0,.4);
+      border-color:var(--chalk-yellow);
+    }
+    .history-thumbs{
+      display:grid;grid-template-columns:1fr 1fr;gap:4px;aspect-ratio:2/1;
+    }
+    .history-thumbs img{
+      width:100%;height:100%;object-fit:cover;
+      background:#fff;border:0.5px solid var(--paper-line);
+      display:block;
+    }
+    .history-cap{
+      display:flex;justify-content:space-between;align-items:center;gap:8px;
+      font-size:11px;color:var(--paper-ink);
+    }
+    .history-cap .title{
+      font-family:var(--font-serif);font-weight:700;font-size:13px;
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+      flex:1;min-width:0;
+    }
+    .history-cap .ts{
+      font-family:var(--font-mono);color:var(--paper-muted);
+      font-size:9.5px;letter-spacing:.08em;white-space:nowrap;
+    }
+
     /* About strip */
     .about-strip{
       max-width:1480px;margin:32px auto 0;padding:0 32px 40px;
@@ -1015,6 +1080,16 @@
       </details>
     </div>
   </main>
+
+  <!-- ===== History strip (localStorage 最近 10 筆，預設隱藏無紀錄時) ===== -->
+  <section class="history-strip" id="history-strip" style="display:none">
+    <div class="history-head">
+      <h4>📜 最近作品</h4>
+      <span class="hint">點圖卡載入當時欄位 · 本機保存最新 10 次</span>
+      <button id="btn-clear-history" class="btn-clear-history">清除歷史</button>
+    </div>
+    <div class="history-grid" id="history-grid"><!-- JS 注入 --></div>
+  </section>
 
   <!-- ===== About strip ===== -->
   <section class="about-strip">
@@ -1530,6 +1605,133 @@
       });
     });
 
+    // ===== History (localStorage 最近 10 筆壓縮縮圖) =====
+    const HISTORY_KEY = 'pm-history';
+    const HISTORY_MAX = 10;
+    const THUMB_SIZE = 256;       // 壓成 256x256 (~30KB jpeg)
+    const THUMB_QUALITY = 0.72;
+
+    function getHistory() {
+      try {
+        const v = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+        return Array.isArray(v) ? v : [];
+      } catch { return []; }
+    }
+    function saveHistory(arr) {
+      try {
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(arr));
+      } catch (e) {
+        // localStorage 5MB 上限 → LRU 淘汰最舊的繼續嘗試
+        console.warn('history save quota exceeded, trimming', e);
+        while (arr.length > 1) {
+          arr.shift();
+          try {
+            localStorage.setItem(HISTORY_KEY, JSON.stringify(arr));
+            return;
+          } catch {}
+        }
+        // 連 1 筆都存不下就放棄
+        localStorage.removeItem(HISTORY_KEY);
+      }
+    }
+
+    // 把 1024×1024 base64 PNG 壓成 256×256 jpeg thumb，~30KB
+    function compressThumb(src) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          try {
+            const canvas = document.createElement('canvas');
+            canvas.width = THUMB_SIZE; canvas.height = THUMB_SIZE;
+            const ctx = canvas.getContext('2d');
+            // 白底（黑白線稿透明處才不會變黑）
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(0, 0, THUMB_SIZE, THUMB_SIZE);
+            ctx.drawImage(img, 0, 0, THUMB_SIZE, THUMB_SIZE);
+            resolve(canvas.toDataURL('image/jpeg', THUMB_QUALITY));
+          } catch (e) { reject(e); }
+        };
+        img.onerror = reject;
+        img.src = src;
+      });
+    }
+
+    async function addToHistory(images, fields) {
+      const thumbs = await Promise.all(images.map(compressThumb));
+      const entry = {
+        ts: Date.now(),
+        title: fields.title || '',
+        character: fields.character || '',
+        dialogue: fields.dialogue || '',
+        background: fields.background || '',
+        thumbs,
+      };
+      const arr = getHistory();
+      arr.push(entry);
+      while (arr.length > HISTORY_MAX) arr.shift();
+      saveHistory(arr);
+      renderHistory();
+    }
+
+    function renderHistory() {
+      const arr = getHistory();
+      const wrap = $('history-strip');
+      const grid = $('history-grid');
+      if (!wrap || !grid) return;
+      if (!arr.length) { wrap.style.display = 'none'; return; }
+      wrap.style.display = '';
+      grid.innerHTML = '';
+      // 最新在前
+      arr.slice().reverse().forEach((e, displayIdx) => {
+        const realIdx = arr.length - 1 - displayIdx;
+        const card = document.createElement('button');
+        card.className = 'history-card';
+        card.type = 'button';
+        const cap = e.title || (e.character || '').slice(0, 14) || '無標題';
+        const d = new Date(e.ts);
+        const time = d.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false });
+        const date = d.toLocaleDateString('zh-TW', { month: '2-digit', day: '2-digit' });
+        const esc = (s) => s.replace(/[<>&"']/g, (c) => ({ '<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;' }[c]));
+        card.innerHTML = `
+          <div class="history-thumbs">
+            <img src="${e.thumbs[0] || ''}" alt="作品 1">
+            <img src="${e.thumbs[1] || e.thumbs[0] || ''}" alt="作品 2">
+          </div>
+          <div class="history-cap">
+            <span class="title">${esc(cap)}</span>
+            <span class="ts">${date} ${time}</span>
+          </div>
+        `;
+        card.addEventListener('click', () => loadHistoryEntry(realIdx));
+        grid.appendChild(card);
+      });
+    }
+
+    function loadHistoryEntry(idx) {
+      const arr = getHistory();
+      const e = arr[idx];
+      if (!e) return;
+      fTitle.value = e.title || '';
+      fChar.value  = e.character || '';
+      fDlg.value   = e.dialogue || '';
+      fBg.value    = e.background || '';
+      refreshPrompt();
+      hideError();
+      showToast('已載入欄位 — 按「生成兩張線稿」可重產');
+      // 滾到 chalkboard
+      document.querySelector('.board')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    $('btn-clear-history').addEventListener('click', () => {
+      if (!confirm('清除全部歷史紀錄？此動作無法復原。')) return;
+      localStorage.removeItem(HISTORY_KEY);
+      renderHistory();
+      showToast('歷史紀錄已清除');
+    });
+
+    // 頁面載入時 render 一次（如果之前有存）
+    renderHistory();
+
     // ===== Generate =====
     $('btn-generate').addEventListener('click', async () => {
       const character = fChar.value.trim();
@@ -1563,6 +1765,8 @@
         setStatus('ready', { count: images.length });
         const remain = Math.max(0, DAILY_QUOTA - getQuotaUsed());
         showToast(`已產 ${images.length} 張（今日剩 ${remain} 次）`);
+        // 寫入歷史紀錄（非阻塞，失敗不影響使用者）
+        addToHistory(images, fields).catch((he) => console.warn('history save failed', he));
         // Scroll to results on mobile
         if (window.innerWidth < 1100) elReady.scrollIntoView({ behavior: 'smooth', block: 'start' });
       } catch (e) {
