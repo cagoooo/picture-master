@@ -725,9 +725,29 @@
     .lightbox .lb-frame{
       background:#fff;border:1.5px solid var(--paper-ink);
       display:flex;align-items:center;justify-content:center;overflow:hidden;
+      position:relative;        /* 給 .lb-nav 絕對定位用 */
     }
     .lightbox .lb-frame img{
       max-width:100%;height:auto;display:block;
+    }
+    /* 左右切換鈕 — 浮在圖兩側 */
+    .lb-nav{
+      position:absolute;top:50%;transform:translateY(-50%);
+      background:rgba(31,28,20,.65);color:#fff;border:none;
+      width:44px;height:44px;border-radius:50%;
+      font-family:var(--font-serif);font-size:24px;font-weight:900;line-height:1;
+      cursor:pointer;z-index:2;
+      display:grid;place-items:center;
+      transition:background .15s, opacity .15s;
+      box-shadow:0 4px 12px rgba(0,0,0,.3);
+    }
+    .lb-nav:hover{background:rgba(31,28,20,.9)}
+    .lb-nav:disabled{opacity:.25;cursor:not-allowed}
+    .lb-prev{left:8px}
+    .lb-next{right:8px}
+    .lb-counter{
+      font-family:var(--font-mono);font-size:10px;letter-spacing:.14em;
+      color:var(--paper-muted);text-transform:uppercase;
     }
     .lightbox .lb-toolbar{display:flex;justify-content:space-between;align-items:center;font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;color:var(--paper-muted);text-transform:uppercase;gap:10px;flex-wrap:wrap}
     .lightbox .lb-toolbar .actions{display:flex;gap:8px;flex-wrap:wrap}
@@ -1123,7 +1143,11 @@
   <div id="lightbox" class="lightbox" role="dialog" aria-modal="true" aria-label="放大檢視">
     <div class="lb-card" id="lb-card">
       <button id="lightbox-close" class="lb-close" aria-label="關閉">×</button>
-      <div class="lb-frame"><img id="lightbox-img" alt="放大圖"></div>
+      <div class="lb-frame">
+        <button id="lb-prev" class="lb-nav lb-prev" aria-label="上一張">‹</button>
+        <img id="lightbox-img" alt="放大圖">
+        <button id="lb-next" class="lb-nav lb-next" aria-label="下一張">›</button>
+      </div>
       <div class="lb-toolbar">
         <span id="lightbox-caption">ILLUSTRATION 01 · 1024×1024 · PNG</span>
         <div class="actions">
@@ -1921,14 +1945,35 @@
     const lightboxDl = $('lightbox-download');
     const lightboxCap = $('lightbox-caption');
     let _lightboxBlobUrl = null;
+    let _lbIdx = 0;
 
     function openLightbox(src, downloadName, idx) {
-      lightboxImg.src = src;
-      lightboxDl.href = src;
-      lightboxDl.download = downloadName || 'picture-master.png';
-      lightboxCap.textContent = `ILLUSTRATION 0${(idx || 0) + 1} · 1024×1024 · PNG`;
+      _lbIdx = idx || 0;
+      showLightboxImage(_lbIdx);
       lightbox.classList.add('open');
       document.body.style.overflow = 'hidden';
+    }
+    function showLightboxImage(idx) {
+      if (idx < 0 || idx >= _lastImages.length) return;
+      _lbIdx = idx;
+      const src = _lastImages[idx];
+      const dlName = makeFilename(idx);
+      lightboxImg.src = src;
+      lightboxDl.href = src;
+      lightboxDl.download = dlName;
+      lightboxCap.textContent = `ILLUSTRATION 0${idx + 1} · 1024×1024 · PNG`;
+      // 左右鈕 disabled 狀態 + 只有 1 張時整組隱藏
+      const multi = _lastImages.length > 1;
+      $('lb-prev').style.display = multi ? '' : 'none';
+      $('lb-next').style.display = multi ? '' : 'none';
+      $('lb-prev').disabled = idx === 0;
+      $('lb-next').disabled = idx === _lastImages.length - 1;
+    }
+    function nextLightboxImage() {
+      if (_lbIdx < _lastImages.length - 1) showLightboxImage(_lbIdx + 1);
+    }
+    function prevLightboxImage() {
+      if (_lbIdx > 0) showLightboxImage(_lbIdx - 1);
     }
     function closeLightbox() {
       lightbox.classList.remove('open');
@@ -1940,10 +1985,30 @@
       }
     }
     $('lightbox-close').addEventListener('click', closeLightbox);
+    $('lb-prev').addEventListener('click', (e) => { e.stopPropagation(); prevLightboxImage(); });
+    $('lb-next').addEventListener('click', (e) => { e.stopPropagation(); nextLightboxImage(); });
     lightbox.addEventListener('click', (e) => { if (e.target === lightbox) closeLightbox(); });
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && lightbox.classList.contains('open')) closeLightbox();
+      if (!lightbox.classList.contains('open')) return;
+      if (e.key === 'Escape')     closeLightbox();
+      else if (e.key === 'ArrowLeft')  prevLightboxImage();
+      else if (e.key === 'ArrowRight') nextLightboxImage();
     });
+
+    // 手機滑動切換
+    let _touchStartX = null;
+    lightbox.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 1) _touchStartX = e.touches[0].clientX;
+    }, { passive: true });
+    lightbox.addEventListener('touchend', (e) => {
+      if (_touchStartX === null) return;
+      const dx = (e.changedTouches[0]?.clientX || _touchStartX) - _touchStartX;
+      if (Math.abs(dx) > 50) {
+        if (dx > 0) prevLightboxImage();
+        else nextLightboxImage();
+      }
+      _touchStartX = null;
+    }, { passive: true });
     $('lightbox-newtab').addEventListener('click', async () => {
       // base64 data URIs are too large for window.open in most browsers — fetch to Blob URL first.
       try {
