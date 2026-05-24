@@ -59,6 +59,24 @@ const ALLOWED_ORIGINS = [
   'http://127.0.0.1:8000',
 ];
 
+// CJK detection（同前端 buildPrompt 邏輯）— 用來標記 prompt 是否含中文/日文
+const CJK_RE = /[぀-ヿ㐀-䶿一-鿿＀-￯]/;
+
+// 寫一筆 generation log 到 Firestore `generations` collection（fire-and-forget）
+// 設計原則：絕不寫 PII（不存 prompt 內容、不存欄位文字），只存可聚合的 metadata
+// 給未來 /admin 後台分析熱度 / failed rate / 同 IP 行為 / 高峰時段
+async function logGeneration(entry) {
+  try {
+    await db.collection('generations').add({
+      ts: FieldValue.serverTimestamp(),
+      ...entry,
+    });
+  } catch (e) {
+    // 紀錄失敗不該影響主流程，只在 functions log 留警告
+    console.warn('generation log write failed', e?.message);
+  }
+}
+
 // ──────────────────────────────────────────────────────────────────
 // LINE Flex Message helper (v2 dark header, mega bubble, 4:6 flex)
 // ──────────────────────────────────────────────────────────────────
@@ -315,6 +333,18 @@ exports.generateImage = onRequest(
         if (errStatus === 429) userMsg = 'OpenAI 額度暫時用完或頻率太高，請稍候再試。';
         else if (errStatus === 401 || errStatus === 403) userMsg = '伺服器設定錯誤（OpenAI API key 無效），請聯絡管理員。';
         else if (errStatus === 400 && /safety|content_policy/i.test(errMsg)) userMsg = '描述觸發 OpenAI 安全過濾，請改寫角色 / 對話內容。';
+        // 記錄失敗事件供 admin 後台分析（hashed IP，無 PII）
+        logGeneration({
+          status: 'failed',
+          ipHash,
+          model: IMAGE_MODEL,
+          promptLen: prompt.length,
+          hasCJK: CJK_RE.test(prompt),
+          errStatus: Number(errStatus) || 500,
+          errMsg: (errMsg || '').slice(0, 200),
+          elapsedMs: Date.now() - t0,
+          dayKey: today,
+        });
         return res.status(errStatus === 502 ? 502 : 500).json({ error: { message: userMsg } });
       }
 
@@ -327,6 +357,26 @@ exports.generateImage = onRequest(
         },
         { merge: true }
       );
+
+      // 記錄成功事件供 admin 後台分析熱度 / 高峰時段 / 字段填寫率
+      logGeneration({
+        status: 'success',
+        ipHash,
+        model: IMAGE_MODEL,
+        quality: IMAGE_QUALITY,
+        imageCount: images.length,
+        promptLen: prompt.length,
+        hasCJK: CJK_RE.test(prompt),
+        fieldsFilled: {
+          title: !!title,
+          character: !!character,
+          dialogue: !!dialogue,
+          background: !!background,
+        },
+        charLen: (character || '').length,
+        elapsedMs: Date.now() - t0,
+        dayKey: today,
+      });
 
       // Push success card (await to ensure delivery before response closes function context)
       await notifyAdminCard({
