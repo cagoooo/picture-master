@@ -311,6 +311,36 @@
       display:flex;flex-wrap:wrap;gap:8px;align-items:center;
     }
 
+    /* 本月主題包 — 隨月份自動帶入節慶範例 */
+    .theme-pack{
+      margin-bottom:14px;padding-bottom:14px;
+      border-bottom:1px dashed rgba(240,235,216,.18);
+    }
+    .theme-pack-head{
+      display:flex;align-items:baseline;gap:10px;margin-bottom:8px;flex-wrap:wrap;
+    }
+    .theme-pack-head .lbl{
+      font-family:var(--font-mono);font-size:10px;letter-spacing:.14em;
+      text-transform:uppercase;color:var(--chalk-soft);
+    }
+    .theme-pack-head .theme-name{
+      font-family:var(--font-chalk);font-size:18px;color:var(--chalk-pink);
+      letter-spacing:.02em;
+    }
+    .theme-pack-chips{
+      display:flex;flex-wrap:wrap;gap:6px;align-items:center;
+    }
+    .theme-chip{
+      font-family:var(--font-chalk);font-size:14px;color:var(--chalk-white);
+      padding:4px 11px;border:1.5px dashed rgba(232,163,180,.4);border-radius:999px;
+      background:rgba(232,163,180,.05);cursor:pointer;transition:all .12s;
+      line-height:1.2;white-space:nowrap;
+    }
+    .theme-chip:hover{
+      border-color:var(--chalk-pink);color:var(--chalk-pink);
+      background:rgba(232,163,180,.1);
+    }
+
     /* 我的範本 — 老師自己存 5-10 個常用 prompt */
     .my-templates{
       margin-top:14px;padding-top:14px;
@@ -1095,6 +1125,7 @@
           </div>
 
           <div class="examples">
+            <div id="theme-pack" class="theme-pack" style="display:none"><!-- JS 注入當月主題 --></div>
             <div id="examples-tabs" class="examples-tabs"><!-- JS 注入分類 tab --></div>
             <div class="examples-chips">
               <span class="lbl">範例 →</span>
@@ -1547,6 +1578,101 @@
 
     let _selectedCategory = 'school';
 
+    // 節慶主題包 — 隨當下月份自動顯示對應 8 例
+    // 格式：[emoji, label, title, dialogue, character, background]
+    const THEME_PACKS = [
+      { id:'spring-festival', name:'春節 · 元宵', icon:'🧧', months:[1, 2], examples:[
+        ['🐲','舞龍舞獅','舞龍舞獅','加油！','兩個小孩穿傳統服裝在舞龍頭，後方有人打鼓','街道，紅色燈籠掛滿天'],
+        ['🧧','收紅包','新年快樂','謝謝！','一個小女生收到爺爺奶奶遞過來的紅包，雙手捧住','客廳，桌上有橘子和糖果'],
+        ['🥟','包餃子','一起包餃子','我會包了！','一家人在桌前一起包餃子，小孩學著大人捏餃子皮','廚房，桌上有麵粉和餃子皮'],
+        ['🏮','元宵提燈籠','元宵節','亮亮的！','幾個小朋友提著各種造型的紙燈籠走在巷子裡','夜晚的傳統街道，月亮高掛'],
+      ]},
+      { id:'spring', name:'春天', icon:'🌸', months:[3], examples:[
+        ['🌸','賞櫻花','春天來了','好美！','一群小朋友抬頭看櫻花樹，花瓣飄落','公園，櫻花滿開的步道'],
+        ['🌱','校園種菜','種下希望','加油！','小朋友蹲在花圃旁邊用小鏟子種菜苗','校園菜園，旁邊有澆水壺'],
+        ['🐝','蜜蜂採花','嗡嗡嗡','','一隻可愛的蜜蜂停在花朵上採蜜','花叢間，遠處有藍天白雲'],
+        ['☂️','春天下雨','下雨了','沙沙沙','一個小朋友撐著黃色雨傘走在水窪間','街道，雨絲斜斜飄落'],
+      ]},
+      { id:'children-day', name:'兒童節 · 清明', icon:'🎈', months:[4], examples:[
+        ['🎈','兒童節遊樂園','兒童節快樂','好好玩！','兩個小朋友坐上旋轉木馬，手舉起來歡呼','遊樂園，遠處有摩天輪'],
+        ["🎁","收禮物","Happy Children Day","謝謝！","一個小男生打開大禮物盒，露出驚喜的笑容","客廳，桌上還有蛋糕"],
+        ['🌳','清明掃墓','慎終追遠','','一家人帶著鮮花到墓前祭拜','山上墓園，遠處有山林'],
+        ['🪁','放風箏','飛高高','加油！','兩個小朋友在草地上一起放風箏','空曠草地，風箏飛在天空'],
+      ]},
+      { id:'mother-day', name:'母親節', icon:'🌷', months:[5], examples:[
+        ['🌷','送花給媽媽','媽媽我愛你','謝謝你','小男生把一束康乃馨遞給媽媽','家裡客廳，餐桌上有禮物'],
+        ["🎂","幫媽媽慶生","Happy Mother Day","吹蠟燭！","一家人圍著生日蛋糕，媽媽閉眼許願","家裡，蛋糕上插著蠟燭"],
+        ['💌','寫卡片','我的媽媽','','小女生坐在桌前認真寫母親節卡片','書房，桌上有水彩和紙'],
+        ['🤱','擁抱媽媽','謝謝媽媽','','小朋友張開雙手抱住媽媽的腰','家裡，背景溫暖'],
+      ]},
+      { id:'dragon-boat', name:'端午 · 畢業', icon:'🐉', months:[6], examples:[
+        ['🐉','賽龍舟','加油！','一二一二！','一條龍舟上有六個人賣力划槳，鼓手站在船頭打鼓','河面，岸邊有觀眾揮旗'],
+        ['🍡','吃粽子','香噴噴','好吃！','一個小男生雙手捧著剛打開的粽子，露出滿足表情','餐桌，旁邊有粽葉'],
+        ['🎓','畢業典禮','畢業快樂','We did it!','一群小學生穿學士服把帽子拋向空中','禮堂，舞台上有畢業背板'],
+        ['📜','頒獎','恭喜畢業','','校長頒發畢業證書給戴方帽的小學生，雙手握手','禮堂講台'],
+      ]},
+      { id:'summer', name:'暑假 · 父親節', icon:'☀️', months:[7, 8], examples:[
+        ['🏖️','海邊玩沙','Summer fun!','Wow!','兩個小朋友在沙灘上一起堆沙堡，旁邊有水桶和鏟子','海邊，遠方有海浪和雲'],
+        ['🍉','吃西瓜','好涼','好甜！','一個小女生坐在椅子上大口吃西瓜，臉上沾到汁','院子，背景有大樹遮蔭'],
+        ['👨','父親節擁抱','爸爸我愛你','謝謝兒子','小男生踮起腳尖抱住爸爸的脖子','家裡客廳，溫暖光線'],
+        ['🏊','游泳池','Splash!','看我！','兩個小朋友在泳池裡玩水，一個從泳圈上跳水','泳池邊，遠處有躺椅'],
+      ]},
+      { id:'mid-autumn-teacher', name:'中秋 · 教師節', icon:'🥮', months:[9], examples:[
+        ['🥮','中秋月圓','中秋節快樂','好圓喔！','一家三口坐在草地上一起吃月餅，抬頭看月亮','夜晚，天空有大大的圓月'],
+        ['🍖','中秋烤肉','BBQ Time','好香！','幾個小朋友圍在烤肉架旁，大人在翻肉','院子，天空有月亮'],
+        ['🍎','教師節送禮','老師謝謝您','謝謝你！','小學生雙手把蘋果遞給女老師','教室，黑板上有「教師節快樂」'],
+        ['💐','謝師卡','Thank you teacher','','一個小女生親手做卡片要送給老師','書桌，旁邊有彩色筆和紙'],
+      ]},
+      { id:'halloween-national', name:'國慶 · 萬聖', icon:'🎃', months:[10], examples:[
+        ['🎌','國慶煙火','中華民國生日快樂','哇！','一家人抬頭看天空中綻放的煙火','夜晚廣場，遠處有國旗'],
+        ['🎃','萬聖節變裝','Trick or treat!','給糖！','一群小朋友穿成幽靈、女巫、南瓜，按門鈴要糖','社區門口，夜晚有南瓜燈'],
+        ['🦇','南瓜燈籠','Happy Halloween','','一個小女生把刻好的南瓜燈點亮','桌上，背景昏暗有蜘蛛網'],
+        ['👻','幽靈派對','Boooo','哈哈！','穿白色床單扮鬼的小孩跳起來嚇朋友','客廳，桌上有萬聖節點心'],
+      ]},
+      { id:'thanksgiving', name:'感恩節', icon:'🦃', months:[11], examples:[
+        ['🦃','感恩節大餐','Happy Thanksgiving','','一家人圍著餐桌，桌上有大火雞和南瓜派','飯廳，溫暖的燭光'],
+        ['🌽','感謝豐收','謝謝農夫','','小朋友手裡捧著玉米、南瓜，露出開心表情','農場，後方有麥田'],
+        ['🎨','火雞手作','I am thankful','','小朋友在課堂上做火雞造型的手掌畫','教室，桌上有色紙和膠水'],
+      ]},
+      { id:'christmas-yearend', name:'聖誕 · 跨年', icon:'🎄', months:[12], examples:[
+        ['🎄','裝飾聖誕樹','Merry Christmas','好漂亮！','兩個小朋友一起裝飾聖誕樹，掛上彩球和星星','客廳，旁邊有禮物盒'],
+        ['🎅','聖誕老人','Ho ho ho!','禮物來了！','聖誕老人扛著大袋子站在聖誕樹旁邊微笑','客廳，聖誕樹上掛滿燈泡'],
+        ['☃️','堆雪人','Let it snow','好冷！','兩個穿厚外套的小朋友在雪地裡堆雪人','雪地，遠處有小屋'],
+        ['🎆','跨年倒數','Happy New Year','5...4...3!','一家人在客廳手舉杯子，電視顯示倒數','客廳，背景有煙火'],
+      ]},
+    ];
+
+    function getCurrentThemePack() {
+      const m = new Date().getMonth() + 1;
+      return THEME_PACKS.find((p) => p.months.includes(m)) || null;
+    }
+
+    function renderThemePack() {
+      const wrap = $('theme-pack');
+      if (!wrap) return;
+      const pack = getCurrentThemePack();
+      if (!pack) { wrap.style.display = 'none'; return; }
+      wrap.style.display = '';
+      wrap.innerHTML = '';
+      const head = document.createElement('div');
+      head.className = 'theme-pack-head';
+      head.innerHTML = `<span class="lbl">📅 本月主題</span>
+                        <span class="theme-name">${pack.icon} ${pack.name}</span>`;
+      wrap.appendChild(head);
+      const chips = document.createElement('div');
+      chips.className = 'theme-pack-chips';
+      pack.examples.forEach(([emoji, label, title, dialogue, character, background]) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'theme-chip';
+        btn.textContent = `${emoji} ${label}`;
+        btn.title = `${title}｜${character.slice(0, 30)}`;
+        btn.addEventListener('click', () => loadExample({ title, character, dialogue, background }));
+        chips.appendChild(btn);
+      });
+      wrap.appendChild(chips);
+    }
+
     function renderExamplesTabs() {
       const wrap = $('examples-tabs');
       if (!wrap) return;
@@ -1673,6 +1799,7 @@
     refreshPrompt();
 
     // ===== Examples (tabs + chips + gallery，全部 JS 渲染) =====
+    renderThemePack();      // 當月主題包（端午 / 母親節 / 教師節...）
     renderExamplesTabs();
     renderExamplesChips();
     renderGallery();
