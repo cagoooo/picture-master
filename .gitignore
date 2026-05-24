@@ -37,3 +37,8 @@ desktop.ini
 # Misc
 .tmp/
 *.log
+
+# Playwright E2E tests
+playwright-report/
+test-results/
+.last-run.json

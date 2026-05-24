@@ -1,0 +1,15 @@
+{
+  "name": "picture-master",
+  "version": "0.5.0",
+  "description": "試卷生圖 Studio · 黑板 × 紙張 — 老師備課用線稿生成工具",
+  "private": true,
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui",
+    "test:install": "playwright install chromium"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0"
+  }
+}

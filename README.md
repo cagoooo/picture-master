@@ -133,6 +133,25 @@ python scripts/make-icons.py
 
 會產：`favicon.svg / favicon-16/32.png / favicon.ico / apple-touch-icon.png / og-image.png`
 
+### 🧪 E2E 測試（Playwright）
+
+```bash
+npm install                  # 裝 @playwright/test
+npm run test:install         # 下載 Chromium browser（一次性 ~120MB）
+npm test                     # 跑 18 條測試（headless，~15 秒）
+npm run test:headed          # 看瀏覽器跑（debug 用）
+npm run test:ui              # 互動 UI mode
+```
+
+5 個 spec 覆蓋：
+- `01-page-loads` — UI 元素載入 / mode banner / 6 分類 / 5 風格
+- `02-prompt-synthesis` — 欄位 → prompt 預覽 / 範例載入 / 風格切換
+- `03-generate-flow` — 本機 mock 生成 / 必填 / 配額滿 / Ctrl+Enter
+- `04-lightbox` — 開啟 / ← → 切換 / Esc 關 / 邊界 disabled
+- `05-history` — 寫入 / 重整持久 / 單筆刪除
+
+本機模式自動跑 mock SVG，**不會打 OpenAI 真實 API**。
+
 ## 🔐 三層護欄設定
 
 ### 1. Cloudflare Turnstile（人機驗證）
