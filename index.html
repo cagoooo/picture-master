@@ -602,20 +602,27 @@
     /* Lightbox */
     .lightbox{
       position:fixed;inset:0;background:rgba(10,8,6,.92);z-index:50;
-      display:none;align-items:center;justify-content:center;padding:24px;
+      display:none;padding:24px;
       backdrop-filter:blur(8px);
+      overflow-y:auto;             /* card 比視窗高時，整個 backdrop 可上下捲 */
+      -webkit-overflow-scrolling:touch;
     }
-    .lightbox.open{display:flex}
+    /* flex-column + margin:auto → 小卡片自動垂直置中、大卡片從上對齊讓 overflow-y:auto 接手 */
+    .lightbox.open{display:flex;flex-direction:column;align-items:center}
     .lightbox .lb-card{
       max-width:980px;width:100%;background:var(--paper);border-radius:4px;
       padding:18px;display:flex;flex-direction:column;gap:14px;position:relative;
       box-shadow:0 40px 80px -20px rgba(0,0,0,.6);
+      margin:auto 0;               /* 短卡時撐開上下 margin → 垂直置中；長卡時 margin 變 0 → 從頂部開始可捲 */
+      flex-shrink:0;               /* 防止被 flex container 壓扁 */
     }
     .lightbox .lb-frame{
-      background:#fff;border:1.5px solid var(--paper-ink);aspect-ratio:1;display:grid;place-items:center;
-      max-height:72vh;overflow:hidden;
+      background:#fff;border:1.5px solid var(--paper-ink);
+      display:flex;align-items:center;justify-content:center;overflow:hidden;
     }
-    .lightbox .lb-frame img{width:100%;height:100%;object-fit:contain;display:block}
+    .lightbox .lb-frame img{
+      max-width:100%;height:auto;display:block;
+    }
     .lightbox .lb-toolbar{display:flex;justify-content:space-between;align-items:center;font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;color:var(--paper-muted);text-transform:uppercase;gap:10px;flex-wrap:wrap}
     .lightbox .lb-toolbar .actions{display:flex;gap:8px;flex-wrap:wrap}
     .lightbox .lb-toolbar .actions a,
