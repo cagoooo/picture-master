@@ -960,6 +960,10 @@
     const VERSION = 'v0.5.0';
     const DAILY_QUOTA = 5;
 
+    // 模組級狀態 — 放最上面避免 TDZ（updateGenerateButton 在 refreshQuotaUI
+    // 初始化時就會被叫到，那時若 let _currentStatus 尚未初始化會炸 ReferenceError）
+    let _currentStatus = 'idle';
+
     const EXAMPLES = [
       { title: 'Science Class', dialogue: 'Look at this!',
         character: '一位戴眼鏡的女老師指著黑板，手上拿著一本書',
@@ -1191,7 +1195,6 @@
     const statDot   = $('paper-stat-dot');
     const statText  = $('paper-stat-text');
 
-    let _currentStatus = 'idle';
     function setStatus(s, info) {
       _currentStatus = s;
       elEmpty.style.display   = (s === 'idle' || s === 'error') ? '' : 'none';
