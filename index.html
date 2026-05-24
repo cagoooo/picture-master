@@ -1143,7 +1143,11 @@
       $('prompt-char-count').textContent = p.length;
     }
 
-    [fTitle, fChar, fDlg, fBg].forEach(el => el.addEventListener('input', refreshPrompt));
+    [fTitle, fChar, fDlg, fBg].forEach(el => {
+      el.addEventListener('input', refreshPrompt);
+      // 任何輸入動作 → 清掉殘留錯誤訊息，避免「明明改了還顯示舊錯」誤導
+      el.addEventListener('input', () => hideError());
+    });
     refreshPrompt();
 
     // ===== Examples =====
@@ -1353,7 +1357,7 @@
         return;
       }
       if (getQuotaUsed() >= DAILY_QUOTA) {
-        showError(`今日 ${DAILY_QUOTA} 次額度已用完，請明日再試`);
+        showError(`今日配額已用滿（${getQuotaUsed()} / ${DAILY_QUOTA} 次）— 請明日再試`);
         return;
       }
 
