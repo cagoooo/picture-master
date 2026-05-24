@@ -791,6 +791,15 @@
     }
     .print-toolbar .ws-title-input:focus{border-color:var(--paper-ink)}
     .print-toolbar .ws-title-input::placeholder{color:var(--paper-muted);font-size:13px}
+    .print-toolbar .ws-layout-select{
+      padding:9px 28px 9px 12px;border:1px solid var(--paper-line);
+      border-radius:2px;background:#fff;
+      font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;
+      color:var(--paper-ink);cursor:pointer;outline:none;
+      appearance:none;-webkit-appearance:none;
+      background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'><path d='M2 4L5 7L8 4' stroke='%231f1c14' stroke-width='1.5' fill='none'/></svg>");
+      background-repeat:no-repeat;background-position:right 8px center;
+    }
     .btn-print{
       background:var(--paper-ink);color:var(--paper);
       border:none;padding:10px 18px;border-radius:2px;
@@ -853,6 +862,24 @@
       .ws-images figcaption{
         font-size:8pt;color:#444;text-align:center;
         padding-top:1.5mm;font-weight:500;
+      }
+
+      /* === 排版變體（由 .worksheet-print[data-layout] 切換）=== */
+      /* 大圖模式：單張塞滿可用寬，限制高 ~14cm 留作答區 */
+      .worksheet-print[data-layout="1-big-1"] .ws-images,
+      .worksheet-print[data-layout="1-big-2"] .ws-images{
+        grid-template-columns:1fr;
+        max-width:14cm;margin-left:auto;margin-right:auto;
+      }
+      .worksheet-print[data-layout="1-big-1"] .ws-images figure:nth-child(2),
+      .worksheet-print[data-layout="1-big-2"] .ws-images figure:nth-child(1){
+        display:none;
+      }
+      /* 直疊模式：2 圖縱向，圖小一點 */
+      .worksheet-print[data-layout="2-stack"] .ws-images{
+        grid-template-columns:1fr;
+        max-width:11cm;margin-left:auto;margin-right:auto;
+        gap:4mm;
       }
 
       .ws-notes-title{
@@ -1072,6 +1099,12 @@
         <div id="print-toolbar" class="print-toolbar" style="display:none">
           <input id="ws-title-input" class="ws-title-input" type="text"
                  placeholder="學習單標題（例：五年級英文 Unit 3）— 留空用「角色描述」當標題">
+          <select id="ws-layout-select" class="ws-layout-select" title="列印排版">
+            <option value="2-side">2 圖並排（一般學習單）</option>
+            <option value="2-stack">2 圖直疊（中等大小）</option>
+            <option value="1-big-1">大圖：圖 1（著色頁）</option>
+            <option value="1-big-2">大圖：圖 2（著色頁）</option>
+          </select>
           <button id="btn-print-worksheet" class="btn-print">
             🖨 列印 A4 學習單
           </button>
@@ -1740,6 +1773,10 @@
       const fromChar  = fChar.value.trim().slice(0, 12);
       const title = fromInput || fromForm || fromChar || '學習單';
       $('ws-print-title').textContent = title;
+
+      // 設定列印排版（CSS data-layout 屬性選擇器接手）
+      const layout = $('ws-layout-select').value || '2-side';
+      $('worksheet-print').setAttribute('data-layout', layout);
 
       // 注入圖片到列印區
       const grid = $('ws-images');
