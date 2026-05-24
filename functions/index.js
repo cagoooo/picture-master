@@ -211,22 +211,14 @@ exports.generateImage = onRequest(
         'unknown';
       const ipHash = crypto.createHash('sha256').update(ip).digest('hex').slice(0, 16);
 
-      // Fire-and-forget "started" notification (parallel with main work)
-      const startedNotify = notifyAdminCard({
-        status: 'started',
-        title: '使用者開始生成插畫',
-        appName: APP_NAME,
-        fields: [
-          ...cardFields,
-          { icon: '🔑', label: 'IP', value: ipHash },
-        ],
-      });
+      // NOTE: No "started" notification — wastes LINE monthly push quota (200-500 free).
+      // Admin learns nothing actionable from "user clicked generate" that they don't
+      // already learn from the imminent success / failure card 15-30s later.
 
       // Turnstile verification
       const turnstileSecret = TURNSTILE_SECRET.value();
       if (turnstileSecret && turnstileSecret !== PLACEHOLDER) {
         if (!turnstileToken) {
-          await Promise.allSettled([startedNotify]);
           return res.status(400).json({ error: { message: '請完成人機驗證後再試' } });
         }
         try {
@@ -245,12 +237,10 @@ exports.generateImage = onRequest(
           const verifyJson = await verifyRes.json();
           if (!verifyJson.success) {
             console.warn('Turnstile failed', verifyJson['error-codes']);
-            await Promise.allSettled([startedNotify]);
             return res.status(403).json({ error: { message: '人機驗證失敗，請重整頁面再試' } });
           }
         } catch (e) {
           console.error('Turnstile API error', e);
-          await Promise.allSettled([startedNotify]);
           return res.status(503).json({ error: { message: '人機驗證服務暫時無法連線，請稍後再試' } });
         }
       }
@@ -261,18 +251,15 @@ exports.generateImage = onRequest(
       const snap = await quotaRef.get();
       const used = snap.exists ? snap.data().count || 0 : 0;
       if (used >= DAILY_QUOTA) {
-        await Promise.allSettled([
-          startedNotify,
-          notifyAdminCard({
-            status: 'warning',
-            title: '使用者額度已用完',
-            appName: APP_NAME,
-            fields: [
-              { icon: '🔑', label: 'IP', value: ipHash },
-              { icon: '📊', label: '今日', value: `${used} / ${DAILY_QUOTA}` },
-            ],
-          }),
-        ]);
+        await notifyAdminCard({
+          status: 'warning',
+          title: '使用者額度已用完',
+          appName: APP_NAME,
+          fields: [
+            { icon: '🔑', label: 'IP', value: ipHash },
+            { icon: '📊', label: '今日', value: `${used} / ${DAILY_QUOTA}` },
+          ],
+        });
         return res.status(429).json({
           error: { message: `今日 ${DAILY_QUOTA} 次額度已用完，請明日再試` },
         });
@@ -281,7 +268,6 @@ exports.generateImage = onRequest(
       // Call OpenAI gpt-image-2 (near-perfect CJK text rendering)
       const apiKey = OPENAI_API_KEY.value();
       if (!apiKey || apiKey === PLACEHOLDER) {
-        await Promise.allSettled([startedNotify]);
         return res.status(500).json({ error: { message: 'OPENAI_API_KEY 未設定，請聯絡管理員' } });
       }
 
@@ -312,21 +298,18 @@ exports.generateImage = onRequest(
       if (!images.length) {
         const errMsg = openaiErr?.message || '無圖回傳，可能觸發安全過濾或內容政策';
         const errStatus = openaiErr?.status || 502;
-        await Promise.allSettled([
-          startedNotify,
-          notifyAdminCard({
-            status: 'failed',
-            title: '圖像生成失敗',
-            appName: APP_NAME,
-            fields: [
-              ...cardFields,
-              { icon: '🤖', label: '模型', value: IMAGE_MODEL },
-              { icon: '💥', label: '錯誤', value: trim(errMsg, 200) },
-              { icon: '🚦', label: 'HTTP', value: String(errStatus) },
-            ],
-            footerNote: `⏱️ ${elapsed}s`,
-          }),
-        ]);
+        await notifyAdminCard({
+          status: 'failed',
+          title: '圖像生成失敗',
+          appName: APP_NAME,
+          fields: [
+            ...cardFields,
+            { icon: '🤖', label: '模型', value: IMAGE_MODEL },
+            { icon: '💥', label: '錯誤', value: trim(errMsg, 200) },
+            { icon: '🚦', label: 'HTTP', value: String(errStatus) },
+          ],
+          footerNote: `⏱️ ${elapsed}s`,
+        });
         // User-friendly message based on common OpenAI errors
         let userMsg = '圖像生成失敗，可能 prompt 觸發內容政策。請調整角色 / 對話描述後重試。';
         if (errStatus === 429) userMsg = 'OpenAI 額度暫時用完或頻率太高，請稍候再試。';
@@ -346,21 +329,18 @@ exports.generateImage = onRequest(
       );
 
       // Push success card (await to ensure delivery before response closes function context)
-      await Promise.allSettled([
-        startedNotify,
-        notifyAdminCard({
-          status: 'success',
-          title: '生成成功',
-          appName: APP_NAME,
-          fields: [
-            ...cardFields,
-            { icon: '🤖', label: '模型', value: `${IMAGE_MODEL} (${IMAGE_QUALITY})` },
-            { icon: '🖼️', label: '張數', value: `${images.length} 張` },
-            { icon: '📊', label: '今日', value: `${used + 1} / ${DAILY_QUOTA}` },
-          ],
-          footerNote: `⏱️ ${elapsed}s`,
-        }),
-      ]);
+      await notifyAdminCard({
+        status: 'success',
+        title: '生成成功',
+        appName: APP_NAME,
+        fields: [
+          ...cardFields,
+          { icon: '🤖', label: '模型', value: `${IMAGE_MODEL} (${IMAGE_QUALITY})` },
+          { icon: '🖼️', label: '張數', value: `${images.length} 張` },
+          { icon: '📊', label: '今日', value: `${used + 1} / ${DAILY_QUOTA}` },
+        ],
+        footerNote: `⏱️ ${elapsed}s`,
+      });
 
       return res.json({
         result: {

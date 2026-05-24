@@ -186,6 +186,29 @@
       </ul>
     </section>
 
+    <!-- Lightbox modal -->
+    <div id="lightbox" class="hidden fixed inset-0 bg-black/85 z-50 items-center justify-center p-4 sm:p-8 fade-in"
+         role="dialog" aria-modal="true" aria-label="放大檢視">
+      <button id="lightbox-close" aria-label="關閉"
+        class="absolute top-4 right-4 sm:top-6 sm:right-6 w-12 h-12 rounded-full bg-white/15 hover:bg-white/30 text-white text-2xl font-bold backdrop-blur transition flex items-center justify-center">
+        ×
+      </button>
+      <div class="max-w-6xl w-full flex flex-col items-center gap-4">
+        <img id="lightbox-img" alt="放大圖" class="max-w-full max-h-[75vh] object-contain rounded-xl shadow-2xl bg-white">
+        <div class="flex flex-wrap gap-3 justify-center">
+          <a id="lightbox-download" download="picture-master-large.png"
+            class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-5 rounded-xl transition">
+            💾 下載這張
+          </a>
+          <button id="lightbox-newtab"
+            class="bg-white/15 hover:bg-white/30 text-white font-medium py-2.5 px-5 rounded-xl transition backdrop-blur">
+            🆕 開新分頁看
+          </button>
+        </div>
+        <p class="text-white/60 text-xs mt-1">按 ESC、點 ×、或點背景皆可關閉</p>
+      </div>
+    </div>
+
     <!-- Footer -->
     <footer class="text-center py-8 text-sm text-slate-500">
       <p class="mb-2">
@@ -198,7 +221,7 @@
         @ 桃園市龍潭區石門國民小學
       </p>
       <p class="text-xs text-slate-400">
-        © 2026 · 圖像由 OpenAI gpt-image-2 生成 · <span id="version-tag">v0.4.0</span>
+        © 2026 · 圖像由 OpenAI gpt-image-2 生成 · <span id="version-tag">v0.4.1</span>
       </p>
     </footer>
   </div>
@@ -207,7 +230,7 @@
   (() => {
     'use strict';
 
-    const VERSION = 'v0.4.0';
+    const VERSION = 'v0.4.1';
     const DAILY_QUOTA = 5;
 
     const EXAMPLES = [
@@ -482,35 +505,84 @@
       $('error').classList.add('hidden');
     }
 
+    // ===== Lightbox (modal viewer for full-size images) =====
+    // Why a modal instead of window.open(dataURI): base64 data URIs are 1-2 MB;
+    // browsers block window.open() URLs over ~2 MB (Chrome) or ~80 KB (Safari).
+    // Native <dialog>-style overlay is universally supported, popup-blocker free,
+    // and gives a better UX (ESC to close, click backdrop, etc).
+    const lightbox = $('lightbox');
+    const lightboxImg = $('lightbox-img');
+    const lightboxDl = $('lightbox-download');
+    let _lightboxBlobUrl = null;
+
+    function openLightbox(src, downloadName) {
+      lightboxImg.src = src;
+      lightboxDl.href = src;
+      lightboxDl.download = downloadName || 'picture-master.png';
+      lightbox.classList.remove('hidden');
+      lightbox.classList.add('flex');
+      document.body.style.overflow = 'hidden';
+    }
+    function closeLightbox() {
+      lightbox.classList.add('hidden');
+      lightbox.classList.remove('flex');
+      lightboxImg.src = '';
+      document.body.style.overflow = '';
+      if (_lightboxBlobUrl) {
+        URL.revokeObjectURL(_lightboxBlobUrl);
+        _lightboxBlobUrl = null;
+      }
+    }
+    $('lightbox-close').addEventListener('click', closeLightbox);
+    lightbox.addEventListener('click', (e) => { if (e.target === lightbox) closeLightbox(); });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !lightbox.classList.contains('hidden')) closeLightbox();
+    });
+    $('lightbox-newtab').addEventListener('click', async () => {
+      // Convert data URI to Blob URL — short enough that any browser accepts it
+      try {
+        const res = await fetch(lightboxImg.src);
+        const blob = await res.blob();
+        if (_lightboxBlobUrl) URL.revokeObjectURL(_lightboxBlobUrl);
+        _lightboxBlobUrl = URL.createObjectURL(blob);
+        window.open(_lightboxBlobUrl, '_blank', 'noopener,noreferrer');
+      } catch (e) {
+        alert('開啟新分頁失敗，請改用「下載這張」儲存後在本機開');
+      }
+    });
+
     // ===== Render Images =====
     function renderImages(images) {
       const grid = $('image-grid');
       grid.innerHTML = '';
       const ts = Date.now();
       images.forEach((src, i) => {
+        const dlName = `picture-master-${ts}-${i + 1}.png`;
         const card = document.createElement('div');
         card.className = 'bg-slate-50 rounded-xl border border-slate-200 overflow-hidden fade-in';
         card.innerHTML = `
-          <div class="bg-white">
-            <img src="${src}" alt="生成結果 ${i+1}" class="w-full aspect-square object-contain">
-          </div>
+          <button class="zoom-trigger block w-full bg-white text-left cursor-zoom-in" aria-label="放大檢視第 ${i + 1} 張">
+            <img src="${src}" alt="生成結果 ${i + 1}" class="w-full aspect-square object-contain pointer-events-none">
+          </button>
           <div class="p-3 flex gap-2">
-            <a href="${src}" download="picture-master-${ts}-${i+1}.png"
+            <a href="${src}" download="${dlName}"
               class="flex-1 text-center bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold py-2 px-3 rounded-lg transition">
               💾 下載 PNG
             </a>
-            <button data-img="${src}" class="open-new bg-slate-200 hover:bg-slate-300 text-slate-700 text-sm font-medium py-2 px-3 rounded-lg transition">
+            <button class="zoom-btn bg-slate-200 hover:bg-slate-300 text-slate-700 text-sm font-medium py-2 px-3 rounded-lg transition">
               🔍 放大看
             </button>
           </div>
         `;
+        // Attach handlers directly to avoid dataset-with-megabyte-data-URI antipattern
+        const triggers = card.querySelectorAll('.zoom-trigger, .zoom-btn');
+        triggers.forEach((el) =>
+          el.addEventListener('click', () => openLightbox(src, dlName))
+        );
         grid.appendChild(card);
       });
-      grid.querySelectorAll('.open-new').forEach(btn => {
-        btn.addEventListener('click', () => window.open(btn.dataset.img, '_blank'));
-      });
       $('results-section').classList.remove('hidden');
-      $('result-status').textContent = `（共 ${images.length} 張，點下載按鈕儲存到電腦）`;
+      $('result-status').textContent = `（共 ${images.length} 張，點圖或「放大看」可預覽，點「下載 PNG」儲存）`;
       $('results-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
