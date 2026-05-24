@@ -979,6 +979,7 @@
     <div class="right">
       <span class="pill"><span class="ledot"></span>LIVE · gpt-image-2</span>
       <span>QUOTA · <span id="quota-remain">5</span>/<span id="quota-max">5</span></span>
+      <a href="#" id="kbd-hint" title="按 ? 查看完整快捷鍵清單">⌨ ?</a>
       <a href="https://github.com/cagoooo/picture-master" target="_blank" rel="noopener">GitHub ↗</a>
     </div>
   </div>
@@ -1050,12 +1051,12 @@
           <div id="turnstile-wrap"><div id="turnstile-widget"></div></div>
 
           <div class="cta">
-            <button id="btn-generate" class="btn-generate">
+            <button id="btn-generate" class="btn-generate" title="快捷鍵：Ctrl+Enter">
               <span class="star">✦</span>
               <span id="btn-generate-label">生成兩張線稿</span>
               <span class="star">✦</span>
             </button>
-            <button id="btn-clear" class="btn-clear" type="button">擦掉</button>
+            <button id="btn-clear" class="btn-clear" type="button" title="快捷鍵：E">擦掉</button>
           </div>
 
           <div class="quota">
@@ -1999,6 +2000,66 @@
 
     // 頁面載入時 render 一次（如果之前有存）
     renderHistory();
+
+    // ===== Keyboard Shortcuts =====
+    // Ctrl/Cmd+Enter 任何欄位 → 生成
+    // 1-6 → 切分類 tab（不在輸入框時）
+    // L → 滾到歷史區
+    // E → 清欄位
+    // ← → / Esc 已在 lightbox handler 內
+    document.addEventListener('keydown', (e) => {
+      // Ctrl/Cmd+Enter：任何欄位裡都能生成
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        $('btn-generate').click();
+        return;
+      }
+      // 其餘 single-key 捷徑：在 input/textarea/contenteditable 內不觸發
+      const tag = e.target.tagName;
+      const inField = tag === 'INPUT' || tag === 'TEXTAREA' || e.target.isContentEditable;
+      if (inField) return;
+      // 修飾鍵存在時也跳過（避免 Ctrl+L、Cmd+E 等系統快捷被搶）
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+      // 1-6 → 切分類 tab
+      if (e.key >= '1' && e.key <= '6') {
+        const idx = parseInt(e.key, 10) - 1;
+        const cat = CATEGORIES[idx];
+        if (cat) {
+          _selectedCategory = cat.id;
+          renderExamplesTabs();
+          renderExamplesChips();
+          renderGallery();
+          showToast(`分類：${cat.em} ${cat.label}`, 900);
+        }
+        return;
+      }
+      // L → 看歷史
+      if (e.key === 'l' || e.key === 'L') {
+        const hist = $('history-strip');
+        if (hist && hist.style.display !== 'none') {
+          hist.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else {
+          showToast('尚無歷史紀錄', 1000);
+        }
+        return;
+      }
+      // E → 清欄位
+      if (e.key === 'e' || e.key === 'E') {
+        $('btn-clear').click();
+        return;
+      }
+      // ? → 顯示快捷鍵清單
+      if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
+        showToast('⌨ Ctrl+Enter 生成 · 1-6 分類 · L 歷史 · E 清欄位 · ← → 切圖 · Esc 關', 4000);
+      }
+    });
+
+    // statusbar ⌨ ? 點擊也顯示同一份提示
+    $('kbd-hint')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      showToast('⌨ Ctrl+Enter 生成 · 1-6 分類 · L 歷史 · E 清欄位 · ← → 切圖 · Esc 關', 4000);
+    });
 
     // ===== Generate =====
     // 抽出 runGenerate(customPrompt?) — 給「生成 / 重生 / 編輯 prompt 重生」共用
