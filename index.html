@@ -44,7 +44,7 @@
     <header class="text-center mb-8">
       <div class="inline-flex items-center gap-2 px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-xs font-bold mb-3">
         <span>✨</span>
-        <span>Powered by Gemini Nano Banana · 中文支援</span>
+        <span>Powered by OpenAI gpt-image-2 · 中文精準渲染</span>
       </div>
       <h1 class="text-4xl md:text-5xl font-black tracking-tight">
         📝 試卷出題配圖生成大師
@@ -198,7 +198,7 @@
         @ 桃園市龍潭區石門國民小學
       </p>
       <p class="text-xs text-slate-400">
-        © 2026 · 圖像由 Google Imagen 生成 · <span id="version-tag">v0.1.0</span>
+        © 2026 · 圖像由 OpenAI gpt-image-2 生成 · <span id="version-tag">v0.4.0</span>
       </p>
     </footer>
   </div>
@@ -207,7 +207,7 @@
   (() => {
     'use strict';
 
-    const VERSION = 'v0.3.0';
+    const VERSION = 'v0.4.0';
     const DAILY_QUOTA = 5;
 
     const EXAMPLES = [
@@ -293,7 +293,7 @@
 
       if (cjkTexts.length) {
         lines.push(
-          `IMPORTANT: Render the following Traditional Chinese characters EXACTLY as provided, with correct stroke shapes and standard typography. Do NOT substitute, transliterate, or invent characters. Texts to render: ${cjkTexts.map((t) => `「${t}」`).join('、')}.`
+          `Render any Chinese / CJK text crisply and accurately as provided, using standard Traditional Chinese typography.`
         );
       }
       return lines.join('\n');

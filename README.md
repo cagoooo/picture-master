@@ -15,11 +15,20 @@ Made by 阿凱老師 @ 桃園市龍潭區石門國民小學
 
 - **前端**：單檔 `index.html` + Tailwind CDN + vanilla JS → GitHub Pages
 - **後端**：Firebase Cloud Functions v2 (Node 22) → `picture-master` GCP 專案
-- **圖像 API**：Google `imagen-4.0-generate-001`（透過 `@google/genai` SDK）
+- **圖像 API**：OpenAI `gpt-image-2` (medium quality, 1024×1024)
 - **三層護欄**：
-  1. Cloudflare Turnstile 人機驗證（待設）
-  2. Firestore per-IP 每日 5 次配額（已上線）
-  3. Cloud Functions `maxInstances=5`（已上線）
+  1. Cloudflare Turnstile 人機驗證
+  2. Firestore per-IP 每日 5 次配額
+  3. Cloud Functions `maxInstances=5`
+- **管理員通知**：LINE Flex Message 卡片（started / success / failed / warning）
+- **版本偵測**：Service Worker BUILD_VERSION 注入 + 雙線 banner 通知
+
+### 圖像模型演進史
+| 版本 | 模型 | 結果 |
+|---|---|---|
+| v0.1-0.2 | Google `imagen-4.0-generate-001` | 中文字變日文片假名亂碼 ❌ |
+| v0.2-0.3 | Google `gemini-2.5-flash-image` (Nano Banana) | 中文字仍亂碼 ❌ |
+| **v0.4+** | **OpenAI `gpt-image-2`** | **中文精準渲染 ✅** |
 
 ## 🚀 本機開發
 
@@ -68,10 +77,11 @@ gh workflow run "Deploy to GitHub Pages" -R cagoooo/picture-master
 
 ## 💰 計費
 
-Imagen 4 計費：**每張約 $0.04 USD**
-- 每次生成 2 張 = $0.08
-- 每 IP 每日 5 次上限 = 最壞 $0.4 USD/IP/天
+OpenAI gpt-image-2 計費（medium quality, 1024×1024）：**每張約 $0.04-0.08 USD**
+- 每次生成 2 張 ≈ $0.08-0.16
+- 每 IP 每日 5 次上限 ≈ 最壞 $0.4-0.8 USD/IP/天
 - 加 `maxInstances=5` 阻止 quota 失控
+- 建議到 OpenAI 後台設月度預算上限 $5-10 當熔斷
 
 ## 📂 專案結構
 
