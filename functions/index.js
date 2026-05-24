@@ -4,8 +4,8 @@
  * generateImage: callable HTTP endpoint that:
  *   1. Verifies Cloudflare Turnstile token (fail-open if secret unset, fail-closed on CF API error)
  *   2. Enforces per-IP per-day quota via Firestore
- *   3. Calls Google Imagen 4 via @google/genai SDK
- *   4. Returns 2 PNG images as data URIs
+ *   3. Calls Gemini 2.5 Flash Image (Nano Banana) via @google/genai SDK — better CJK rendering
+ *   4. Returns 2 PNG images as data URIs (parallel calls, 1 image each)
  *
  * Secrets needed (set via `firebase functions:secrets:set NAME`):
  *   - GEMINI_API_KEY (Imagen API access, restricted key from gcloud)
@@ -129,26 +129,38 @@ exports.generateImage = onRequest(
           .json({ error: { message: 'GEMINI_API_KEY 未設定，請聯絡管理員' } });
       }
 
+      // Use Gemini 2.5 Flash Image (Nano Banana) — much better Chinese/CJK text rendering
+      // than Imagen 4. API differs: chat-based generateContent, 1 image per call,
+      // so we issue 2 parallel requests for 2 variants.
       const ai = new GoogleGenAI({ apiKey });
-      const genResult = await ai.models.generateImages({
-        model: 'imagen-4.0-generate-001',
-        prompt,
-        config: {
-          numberOfImages: 2,
-          aspectRatio: '1:1',
-          personGeneration: 'allow_all',
-        },
-      });
 
-      const images = (genResult.generatedImages || []).map(
-        (g) => `data:image/png;base64,${g.image.imageBytes}`
-      );
+      const callOnce = async () => {
+        const out = await ai.models.generateContent({
+          model: 'gemini-2.5-flash-image',
+          contents: prompt,
+        });
+        const parts = out?.candidates?.[0]?.content?.parts || [];
+        for (const p of parts) {
+          if (p.inlineData?.data) {
+            const mime = p.inlineData.mimeType || 'image/png';
+            return `data:${mime};base64,${p.inlineData.data}`;
+          }
+        }
+        return null;
+      };
+
+      const settled = await Promise.allSettled([callOnce(), callOnce()]);
+      const images = settled
+        .filter((r) => r.status === 'fulfilled' && r.value)
+        .map((r) => r.value);
 
       if (!images.length) {
+        const firstReason = settled.find((r) => r.status === 'rejected')?.reason;
+        console.warn('Nano Banana returned no images', firstReason);
         return res.status(502).json({
           error: {
             message:
-              'Imagen 未回傳圖片，可能 prompt 觸發安全過濾。請調整角色 / 對話描述後重試。',
+              '圖像生成失敗，可能 prompt 觸發安全過濾。請調整角色 / 對話描述後重試。',
           },
         });
       }

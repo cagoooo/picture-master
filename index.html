@@ -44,7 +44,7 @@
     <header class="text-center mb-8">
       <div class="inline-flex items-center gap-2 px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-xs font-bold mb-3">
         <span>✨</span>
-        <span>Powered by Google Imagen</span>
+        <span>Powered by Gemini Nano Banana · 中文支援</span>
       </div>
       <h1 class="text-4xl md:text-5xl font-black tracking-tight">
         📝 試卷出題配圖生成大師
@@ -207,7 +207,7 @@
   (() => {
     'use strict';
 
-    const VERSION = 'v0.1.0';
+    const VERSION = 'v0.2.0';
     const DAILY_QUOTA = 5;
 
     const EXAMPLES = [
@@ -245,6 +245,10 @@
           promptPreview = $('prompt-preview');
 
     // ===== Prompt Synthesis =====
+    // Detect if any text field contains CJK (Chinese / Japanese / Korean) chars,
+    // because Nano Banana needs explicit instructions to render CJK accurately.
+    const CJK_RE = /[　-鿿＀-￯]/;
+
     function buildPrompt() {
       const title = fTitle.value.trim();
       const character = fChar.value.trim();
@@ -252,19 +256,27 @@
       const background = fBg.value.trim();
 
       const lines = [
-        'A minimalist black and white vector line art, coloring book style.',
+        'Generate a minimalist black and white vector line art image, coloring book style.',
       ];
 
       const textElements = [];
+      const cjkTexts = [];
+
       if (title) {
-        textElements.push(`A large, bold title "${title.toUpperCase()}" at the top center.`);
+        const titleHasCJK = CJK_RE.test(title);
+        // For CJK keep original case; for ASCII title use UPPERCASE for bold look
+        const titleStr = titleHasCJK ? title : title.toUpperCase();
+        textElements.push(`A large, bold title that reads EXACTLY "${titleStr}" at the top center of the image.`);
+        if (titleHasCJK) cjkTexts.push(title);
       }
       if (dialogue) {
+        const dlgHasCJK = CJK_RE.test(dialogue);
         if (character) {
-          textElements.push(`A clean speech bubble with a clear pointing arrow towards the ${character} containing the text "${dialogue}".`);
+          textElements.push(`A clean speech bubble with a clear pointing arrow towards the ${character}, containing the text EXACTLY "${dialogue}".`);
         } else {
-          textElements.push(`A clean speech bubble containing the text "${dialogue}".`);
+          textElements.push(`A clean speech bubble containing the text EXACTLY "${dialogue}".`);
         }
+        if (dlgHasCJK) cjkTexts.push(dialogue);
       }
       if (textElements.length) {
         lines.push('Text Elements: ' + textElements.join(' '));
@@ -278,6 +290,12 @@
       }
 
       lines.push('Style: Thick bold black outlines, pure white background, no shading, no gradients, no colors, no gray scales, high contrast. Professional comic-strip layout. Suitable as a coloring page for kids. No frame around the image.');
+
+      if (cjkTexts.length) {
+        lines.push(
+          `IMPORTANT: Render the following Traditional Chinese characters EXACTLY as provided, with correct stroke shapes and standard typography. Do NOT substitute, transliterate, or invent characters. Texts to render: ${cjkTexts.map((t) => `「${t}」`).join('、')}.`
+        );
+      }
       return lines.join('\n');
     }
 
