@@ -352,10 +352,12 @@
 
     // ===== Cloudflare Turnstile =====
     const CFG = window.__PM_CONFIG || {};
+    // Real Cloudflare Turnstile site keys start with "0x" (or "1x"/"2x"/"3x" for test keys).
+    // Comparison NOT against the placeholder literal — the deploy sed would rewrite it too.
     const TURNSTILE_ENABLED =
       !IS_LOCAL &&
       CFG.TURNSTILE_SITE_KEY &&
-      CFG.TURNSTILE_SITE_KEY !== 'PLACEHOLDER_NOT_CONFIGURED';
+      /^[0123]x[A-Za-z0-9_-]+$/.test(CFG.TURNSTILE_SITE_KEY);
 
     let turnstileWidgetId = null;
     window.__turnstileToken = null;
