@@ -819,10 +819,29 @@
       display:inline-flex;align-items:center;gap:7px;
     }
     .btn-print:hover{background:#000}
+    .btn-regenerate{
+      background:transparent;color:var(--paper-ink);
+      border:1.5px solid var(--paper-ink);padding:9px 16px;border-radius:2px;
+      font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;
+      text-transform:uppercase;font-weight:700;cursor:pointer;
+      display:inline-flex;align-items:center;gap:7px;
+    }
+    .btn-regenerate:hover{background:var(--chalk-yellow);border-color:var(--chalk-yellow)}
+    .btn-regenerate:disabled{opacity:.3;cursor:not-allowed;background:transparent}
     .print-toolbar .hint{
       font-family:var(--font-mono);font-size:9.5px;letter-spacing:.1em;
       color:var(--paper-muted);text-transform:uppercase;
       flex-basis:100%;margin-top:-2px;
+    }
+
+    /* Prompt 編輯模式視覺提示 */
+    .prompt-panel pre[contenteditable="true"]{
+      outline:2px dashed var(--chalk-red);
+      cursor:text;
+    }
+    .prompt-panel pre[contenteditable="true"]::after{
+      content:" ✏️ 編輯中";color:var(--chalk-red);
+      font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;
     }
 
     /* =========================================================
@@ -1116,10 +1135,13 @@
             <option value="1-big-1">大圖：圖 1（著色頁）</option>
             <option value="1-big-2">大圖：圖 2（著色頁）</option>
           </select>
+          <button id="btn-regenerate" class="btn-regenerate" title="用相同 4 個欄位再生一次">
+            🔄 重新生成
+          </button>
           <button id="btn-print-worksheet" class="btn-print">
             🖨 列印 A4 學習單
           </button>
-          <span class="hint">瀏覽器列印對話框 → 目的地選「另存為 PDF」即可下載</span>
+          <span class="hint">不滿意可「重新生成」用同設定再產一次 · 列印對話框「另存為 PDF」即可下載</span>
         </div>
       </section>
 
@@ -1133,6 +1155,9 @@
           <pre id="prompt-preview"></pre>
           <div class="actions">
             <button id="btn-copy-prompt" class="action solid">↗ 複製 PROMPT</button>
+            <button id="btn-edit-prompt" class="action">✏️ 編輯</button>
+            <button id="btn-regen-from-prompt" class="action" style="display:none">🔄 用此 PROMPT 重生</button>
+            <button id="btn-prompt-reset" class="action" style="display:none">↺ 重置（依表單）</button>
             <a class="action" href="https://chat.openai.com/" target="_blank" rel="noopener">ChatGPT ↗</a>
             <a class="action" href="https://www.bing.com/images/create" target="_blank" rel="noopener">Bing Image Creator ↗</a>
           </div>
@@ -1236,9 +1261,11 @@
     const VERSION = 'v0.5.0';
     const DAILY_QUOTA = 5;
 
-    // 模組級狀態 — 放最上面避免 TDZ
+    // 模組級狀態 — 放最上面避免 TDZ（refreshPrompt / refreshQuotaUI 等在 init
+    // 階段就會跑，引用任何 let X 都會炸 ReferenceError）
     let _currentStatus = 'idle';
-    let _lastImages = [];  // 最近一次成功生成的圖片 URLs，供列印 / 歷史使用
+    let _lastImages = [];     // 最近一次成功生成的圖片 URLs，供列印 / 歷史使用
+    let _promptEditMode = false; // prompt 編輯模式（true 時 refreshPrompt 不覆蓋）
 
     // ==========================================================
     // ⚡ EARLY BOOT — DOM helper / IS_LOCAL / SW 註冊放最頂端
@@ -1569,6 +1596,8 @@
     }
 
     function refreshPrompt() {
+      // 編輯模式中不覆蓋使用者輸入（避免改欄位時把編輯的 prompt 沖掉）
+      if (_promptEditMode) return;
       const p = buildPrompt();
       promptPreview.textContent = p;
       $('prompt-char-count').textContent = p.length;
@@ -1972,9 +2001,11 @@
     renderHistory();
 
     // ===== Generate =====
-    $('btn-generate').addEventListener('click', async () => {
+    // 抽出 runGenerate(customPrompt?) — 給「生成 / 重生 / 編輯 prompt 重生」共用
+    async function runGenerate(customPrompt) {
       const character = fChar.value.trim();
-      if (!character) {
+      // 用編輯後的 prompt 重生時放寬欄位檢查（使用者可能完全改成自由 prompt）
+      if (!customPrompt && !character) {
         showError('請至少填寫「角色描述」');
         fChar.focus();
         return;
@@ -1988,7 +2019,7 @@
       setStatus('loading');
 
       try {
-        const prompt = buildPrompt();
+        const prompt = customPrompt || buildPrompt();
         const fields = {
           title: fTitle.value.trim(),
           character,
@@ -2004,15 +2035,73 @@
         setStatus('ready', { count: images.length });
         const remain = Math.max(0, DAILY_QUOTA - getQuotaUsed());
         showToast(`已產 ${images.length} 張（今日剩 ${remain} 次）`);
-        // 寫入歷史紀錄（非阻塞，失敗不影響使用者）
         addToHistory(images, fields).catch((he) => console.warn('history save failed', he));
-        // Scroll to results on mobile
         if (window.innerWidth < 1100) elReady.scrollIntoView({ behavior: 'smooth', block: 'start' });
       } catch (e) {
         console.error(e);
         showError(e.message || '生成失敗，請稍後再試');
         resetTurnstile();
       }
+    }
+
+    $('btn-generate').addEventListener('click', () => runGenerate());
+
+    // 重新生成（同 4 欄位，不用重填）
+    $('btn-regenerate').addEventListener('click', () => {
+      showToast('用相同設定重新生成…', 1200);
+      runGenerate();
+    });
+
+    // ===== Prompt 編輯模式 =====
+    // _promptEditMode 已在 IIFE 頂端宣告（避免 refreshPrompt 在 init 時 TDZ）
+    function setPromptEditMode(edit) {
+      _promptEditMode = edit;
+      promptPreview.contentEditable = edit ? 'true' : 'false';
+      promptPreview.spellcheck = false;
+      $('btn-edit-prompt').textContent = edit ? '✓ 完成編輯' : '✏️ 編輯';
+      $('btn-regen-from-prompt').style.display = edit ? '' : 'none';
+      $('btn-prompt-reset').style.display = edit ? '' : 'none';
+      if (edit) {
+        promptPreview.focus();
+        // 把游標放到文字尾端，方便接著打
+        const range = document.createRange();
+        range.selectNodeContents(promptPreview);
+        range.collapse(false);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+      } else {
+        // 退出編輯 → 重新依表單渲染
+        const p = buildPrompt();
+        promptPreview.textContent = p;
+        $('prompt-char-count').textContent = p.length;
+      }
+    }
+
+    $('btn-edit-prompt').addEventListener('click', () => {
+      setPromptEditMode(!_promptEditMode);
+    });
+
+    $('btn-prompt-reset').addEventListener('click', () => {
+      // 強制依表單重渲（即使在編輯模式）
+      const p = buildPrompt();
+      promptPreview.textContent = p;
+      $('prompt-char-count').textContent = p.length;
+      showToast('已重置為表單合成的 prompt');
+    });
+
+    $('btn-regen-from-prompt').addEventListener('click', () => {
+      const customPrompt = (promptPreview.textContent || '').trim();
+      if (!customPrompt) {
+        showError('Prompt 是空的，請編輯後再生');
+        return;
+      }
+      // 編輯模式關掉，避免之後改欄位的 refreshPrompt 衝突
+      setPromptEditMode(false);
+      promptPreview.textContent = customPrompt;
+      $('prompt-char-count').textContent = customPrompt.length;
+      showToast('用編輯後的 prompt 生成…', 1200);
+      runGenerate(customPrompt);
     });
 
     // ===== Lightbox =====
