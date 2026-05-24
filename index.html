@@ -666,6 +666,22 @@
     }
     .errorbar .x{color:var(--chalk-red);font-family:var(--font-serif);font-weight:900}
 
+    /* Toast — 生成成功小提示，bottom 90px 避免跟 SW 更新 banner（bottom 20px）打架 */
+    .toast{
+      position:fixed;bottom:90px;left:50%;transform:translateX(-50%);
+      background:rgba(31,42,38,.96);color:var(--chalk-yellow);
+      padding:12px 22px;border-radius:3px;
+      font-family:var(--font-mono);font-size:12.5px;letter-spacing:.08em;
+      border:1px solid rgba(246,197,96,.35);
+      box-shadow:0 10px 30px rgba(0,0,0,.45), inset 0 0 0 1px rgba(0,0,0,.3);
+      z-index:100;white-space:nowrap;
+      animation:toastIn .25s ease-out, toastOut .35s ease-in 1.15s forwards;
+      display:flex;align-items:center;gap:8px;
+    }
+    .toast .ok{color:#9ce7a9;font-family:var(--font-serif);font-weight:900;font-size:14px}
+    @keyframes toastIn  { from{opacity:0;transform:translate(-50%,12px)} to{opacity:1;transform:translate(-50%,0)} }
+    @keyframes toastOut { to{opacity:0;transform:translate(-50%,-6px)} }
+
     /* Responsive */
     @media (max-width:1100px){
       .studio{grid-template-columns:1fr;gap:24px}
@@ -1051,6 +1067,36 @@
       }
     });
 
+    // ===== 檔名語意化 =====
+    // title 優先（老師最先想到的描述），無 title 則退到 character 前 10 字
+    // 中文檔名現代瀏覽器都接受，Windows 自動 UTF-8 處理
+    function slugifyForFilename(s) {
+      if (!s) return 'untitled';
+      s = s.trim().slice(0, 14);
+      s = s.replace(/[\\/:*?"<>|]/g, '');  // Windows 路徑禁字
+      s = s.replace(/[\s　]+/g, '-');  // 半形 + 全形空白 → -
+      s = s.replace(/[!@#$%^&*()=+,.;'`~]/g, ''); // 標點
+      s = s.replace(/-+/g, '-').replace(/^-|-$/g, '');
+      return s || 'untitled';
+    }
+    function makeFilename(i) {
+      const title = fTitle.value.trim();
+      const character = fChar.value.trim();
+      const slug = slugifyForFilename(title || character);
+      return `${slug}-${String(i + 1).padStart(2, '0')}.png`;
+    }
+
+    // ===== Toast (生成成功 / 提示) =====
+    function showToast(msg, ms = 1800) {
+      // 先把舊的清掉，避免疊起來
+      document.querySelectorAll('.toast').forEach(el => el.remove());
+      const t = document.createElement('div');
+      t.className = 'toast';
+      t.innerHTML = `<span class="ok">✓</span>${msg}`;
+      document.body.appendChild(t);
+      setTimeout(() => t.remove(), ms);
+    }
+
     // ===== Quota (local, per-day) =====
     function todayKey() {
       return 'pm-quota-' + new Date().toISOString().slice(0, 10);
@@ -1078,6 +1124,8 @@
         t.className = 'tick' + (i < used ? ' used' : '');
         ticks.appendChild(t);
       }
+      // 配額耗盡 → 按鈕直接灰掉
+      if (typeof updateGenerateButton === 'function') updateGenerateButton();
     }
     refreshQuotaUI();
 
@@ -1143,23 +1191,34 @@
     const statDot   = $('paper-stat-dot');
     const statText  = $('paper-stat-text');
 
+    let _currentStatus = 'idle';
     function setStatus(s, info) {
+      _currentStatus = s;
       elEmpty.style.display   = (s === 'idle' || s === 'error') ? '' : 'none';
       elLoading.style.display = (s === 'loading') ? '' : 'none';
       elReady.style.display   = (s === 'ready') ? '' : 'none';
-      const cls = { busy:'busy', live:'live', idle:'idle' };
       let dot = 'idle', text = 'STANDBY';
       if (s === 'loading') { dot = 'busy'; text = 'GENERATING'; }
       else if (s === 'ready') { dot = 'live'; text = `READY · ${info?.count || 0} IMAGES`; }
       else if (s === 'error') { dot = 'idle'; text = 'WAITING'; }
       statDot.className = 'd ' + dot;
       statText.textContent = text;
-
-      // Generate button label
-      $('btn-generate-label').textContent = (s === 'loading') ? '繪製中…' : '生成兩張線稿';
-      $('btn-generate').disabled = (s === 'loading');
+      updateGenerateButton();
     }
-    setStatus('idle');
+
+    // 統合 loading 狀態 + 配額判斷 → 按鈕 label / disabled
+    function updateGenerateButton() {
+      const isLoading = _currentStatus === 'loading';
+      const outOfQuota = getQuotaUsed() >= DAILY_QUOTA;
+      const btn = $('btn-generate');
+      const lbl = $('btn-generate-label');
+      btn.disabled = isLoading || outOfQuota;
+      lbl.textContent = isLoading
+        ? '繪製中…'
+        : outOfQuota
+          ? '今日額度已用完 · 明日再試'
+          : '生成兩張線稿';
+    }
 
     function showError(msg) {
       $('error-msg').textContent = msg;
@@ -1201,6 +1260,8 @@
         refreshQuotaUI();
         resetTurnstile();
         setStatus('ready', { count: images.length });
+        const remain = Math.max(0, DAILY_QUOTA - getQuotaUsed());
+        showToast(`已產 ${images.length} 張（今日剩 ${remain} 次）`);
         // Scroll to results on mobile
         if (window.innerWidth < 1100) elReady.scrollIntoView({ behavior: 'smooth', block: 'start' });
       } catch (e) {
@@ -1256,9 +1317,8 @@
     function renderImages(images) {
       const grid = elReady;
       grid.innerHTML = '';
-      const ts = Date.now();
       images.forEach((src, i) => {
-        const dlName = `picture-master-${ts}-${i + 1}.png`;
+        const dlName = makeFilename(i);
         const card = document.createElement('div');
         card.className = 'img-card';
         card.innerHTML = `
