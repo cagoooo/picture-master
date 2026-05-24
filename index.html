@@ -310,6 +310,54 @@
     .examples-chips{
       display:flex;flex-wrap:wrap;gap:8px;align-items:center;
     }
+
+    /* 我的範本 — 老師自己存 5-10 個常用 prompt */
+    .my-templates{
+      margin-top:14px;padding-top:14px;
+      border-top:1px dashed rgba(240,235,216,.18);
+    }
+    .my-templates-head{
+      display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;
+    }
+    .my-templates-head .lbl{
+      font-family:var(--font-chalk);font-size:16px;color:var(--chalk-yellow);
+      letter-spacing:.02em;
+    }
+    .btn-save-tpl{
+      font-family:var(--font-mono);font-size:10px;letter-spacing:.12em;
+      text-transform:uppercase;padding:5px 11px;
+      background:transparent;color:var(--chalk-soft);
+      border:1px dashed rgba(207,202,176,.4);border-radius:2px;
+      cursor:pointer;transition:all .12s;line-height:1;
+    }
+    .btn-save-tpl:hover{
+      color:var(--chalk-yellow);border-color:var(--chalk-yellow);
+      background:rgba(246,197,96,.08);
+    }
+    .my-templates-chips{
+      display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-height:24px;
+    }
+    .tpl-chip{
+      font-family:var(--font-chalk);font-size:14px;color:var(--chalk-white);
+      padding:4px 8px 4px 12px;border:1.5px solid rgba(246,197,96,.3);border-radius:999px;
+      background:rgba(246,197,96,.06);cursor:pointer;line-height:1.2;
+      display:inline-flex;align-items:center;gap:8px;
+      transition:all .12s;
+    }
+    .tpl-chip:hover{border-color:var(--chalk-yellow);background:rgba(246,197,96,.12)}
+    .tpl-chip .star{color:var(--chalk-yellow);font-size:12px}
+    .tpl-chip .del{
+      background:transparent;border:none;color:var(--chalk-soft);
+      font-family:var(--font-serif);font-size:14px;font-weight:900;line-height:1;
+      cursor:pointer;padding:0 4px;border-radius:50%;
+      opacity:.5;transition:all .12s;
+    }
+    .tpl-chip:hover .del{opacity:1}
+    .tpl-chip .del:hover{color:var(--chalk-red);background:rgba(224,124,94,.15)}
+    .my-templates-empty{
+      font-family:var(--font-chalk);font-size:13px;color:rgba(207,202,176,.5);
+      font-style:italic;
+    }
     .chip{
       font-family:var(--font-chalk);font-size:15px;color:var(--chalk-white);
       padding:4px 12px;border:1.5px dashed rgba(240,235,216,.35);border-radius:999px;
@@ -1051,6 +1099,13 @@
             <div class="examples-chips">
               <span class="lbl">範例 →</span>
               <div id="examples-chips" style="display:contents"><!-- JS 注入當下分類的範例 chips --></div>
+            </div>
+            <div class="my-templates">
+              <div class="my-templates-head">
+                <span class="lbl">★ 我的範本</span>
+                <button id="btn-save-tpl" class="btn-save-tpl" type="button" title="把當前 4 欄位存成範本">+ 存為範本</button>
+              </div>
+              <div id="my-templates-chips" class="my-templates-chips"><!-- JS 注入 --></div>
             </div>
           </div>
 
@@ -2006,6 +2061,113 @@
 
     // 頁面載入時 render 一次（如果之前有存）
     renderHistory();
+
+    // ===== 我的範本（localStorage 老師自存 prompt 快取）=====
+    const TPL_KEY = 'pm-templates';
+    const TPL_MAX = 10;
+
+    function getTemplates() {
+      try {
+        const v = JSON.parse(localStorage.getItem(TPL_KEY) || '[]');
+        return Array.isArray(v) ? v : [];
+      } catch { return []; }
+    }
+    function saveTemplates(arr) {
+      try { localStorage.setItem(TPL_KEY, JSON.stringify(arr)); }
+      catch (e) { console.warn('save tpl failed', e); }
+    }
+
+    function renderTemplates() {
+      const wrap = $('my-templates-chips');
+      if (!wrap) return;
+      const arr = getTemplates();
+      wrap.innerHTML = '';
+      if (!arr.length) {
+        const hint = document.createElement('span');
+        hint.className = 'my-templates-empty';
+        hint.textContent = '尚無範本 — 填好欄位後按「+ 存為範本」可保存常用設定';
+        wrap.appendChild(hint);
+        return;
+      }
+      const esc = (s) => s.replace(/[<>&"']/g, (c) => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]));
+      arr.forEach((t) => {
+        const chip = document.createElement('span');
+        chip.className = 'tpl-chip';
+        chip.title = `${t.title || ''}｜${(t.character || '').slice(0, 30)}`;
+        chip.innerHTML = `
+          <span class="star">★</span>
+          <span class="label">${esc(t.name)}</span>
+          <button class="del" type="button" data-del="${t.id}" title="刪除這個範本">×</button>
+        `;
+        chip.addEventListener('click', (ev) => {
+          if (ev.target.classList.contains('del')) {
+            ev.stopPropagation();
+            deleteTemplate(t.id);
+            return;
+          }
+          loadTemplate(t.id);
+        });
+        wrap.appendChild(chip);
+      });
+    }
+
+    function loadTemplate(id) {
+      const t = getTemplates().find((x) => x.id === id);
+      if (!t) return;
+      fTitle.value = t.title || '';
+      fChar.value  = t.character || '';
+      fDlg.value   = t.dialogue || '';
+      fBg.value    = t.background || '';
+      refreshPrompt();
+      hideError();
+      showToast(`★ 已載入範本「${t.name}」`);
+      fChar.focus();
+    }
+
+    function deleteTemplate(id) {
+      const arr = getTemplates();
+      const idx = arr.findIndex((x) => x.id === id);
+      if (idx === -1) return;
+      if (!confirm(`刪除範本「${arr[idx].name}」？`)) return;
+      arr.splice(idx, 1);
+      saveTemplates(arr);
+      renderTemplates();
+      showToast('已刪除 1 個範本');
+    }
+
+    $('btn-save-tpl').addEventListener('click', () => {
+      // 必須至少有角色描述才有保存價值
+      if (!fChar.value.trim()) {
+        showError('「角色描述」是空的，沒有可保存的內容');
+        fChar.focus();
+        return;
+      }
+      const arr = getTemplates();
+      if (arr.length >= TPL_MAX) {
+        showError(`範本上限 ${TPL_MAX} 個 — 請先刪舊的再存`);
+        return;
+      }
+      // 預設名稱：title 或 character 前 10 字
+      const defaultName = (fTitle.value.trim() || fChar.value.trim().slice(0, 10) || '範本');
+      const name = prompt('幫這個範本取個名字（最多 12 字）：', defaultName);
+      if (!name) return;
+      const cleanName = name.trim().slice(0, 12);
+      if (!cleanName) return;
+      arr.push({
+        id: 't_' + Date.now().toString(36),
+        name: cleanName,
+        title: fTitle.value.trim(),
+        character: fChar.value.trim(),
+        dialogue: fDlg.value.trim(),
+        background: fBg.value.trim(),
+        ts: Date.now(),
+      });
+      saveTemplates(arr);
+      renderTemplates();
+      showToast(`★ 範本「${cleanName}」已保存（${arr.length}/${TPL_MAX}）`);
+    });
+
+    renderTemplates();
 
     // ===== Keyboard Shortcuts =====
     // Ctrl/Cmd+Enter 任何欄位 → 生成
