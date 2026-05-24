@@ -277,11 +277,32 @@
     .field .hint{font-family:var(--font-chalk);font-size:13px;color:rgba(207,202,176,.6);margin-top:2px;line-height:1.2}
 
     .examples{
-      margin-top:24px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;
+      margin-top:24px;
       padding-top:18px;border-top:1px dashed rgba(240,235,216,.18);
     }
     .examples .lbl{
       font-family:var(--font-chalk);font-size:15px;color:var(--chalk-soft);margin-right:4px;
+    }
+    .examples-tabs{
+      display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;
+    }
+    .tab-btn{
+      font-family:var(--font-mono);font-size:10.5px;letter-spacing:.1em;
+      text-transform:uppercase;
+      padding:5px 11px;border-radius:2px;cursor:pointer;
+      background:transparent;color:rgba(207,202,176,.6);
+      border:1px solid rgba(207,202,176,.2);
+      transition:all .12s;line-height:1;
+      display:inline-flex;align-items:center;gap:5px;
+    }
+    .tab-btn .em{font-size:13px;line-height:1}
+    .tab-btn:hover{color:var(--chalk-white);border-color:rgba(240,235,216,.4)}
+    .tab-btn.active{
+      background:rgba(246,197,96,.12);color:var(--chalk-yellow);
+      border-color:var(--chalk-yellow);
+    }
+    .examples-chips{
+      display:flex;flex-wrap:wrap;gap:8px;align-items:center;
     }
     .chip{
       font-family:var(--font-chalk);font-size:15px;color:var(--chalk-white);
@@ -942,11 +963,11 @@
           </div>
 
           <div class="examples">
-            <span class="lbl">範例 →</span>
-            <button data-example="0" class="example-btn chip">🔬 Science Class</button>
-            <button data-example="1" class="example-btn chip">🐷 Farm Life</button>
-            <button data-example="2" class="example-btn chip">➗ 數學課</button>
-            <button data-example="3" class="example-btn chip">🏃 運動會</button>
+            <div id="examples-tabs" class="examples-tabs"><!-- JS 注入分類 tab --></div>
+            <div class="examples-chips">
+              <span class="lbl">範例 →</span>
+              <div id="examples-chips" style="display:contents"><!-- JS 注入當下分類的範例 chips --></div>
+            </div>
           </div>
 
           <div id="turnstile-wrap"><div id="turnstile-widget"></div></div>
@@ -998,32 +1019,7 @@
               </div>
               <span class="gallery-tag">INSPIRATION</span>
             </div>
-            <div class="gallery-grid">
-              <button data-example="0" class="example-btn gallery-card">
-                <span class="emo">🔬</span>
-                <span class="cap">Science Class</span>
-                <span class="desc">戴眼鏡的女老師指著黑板，教室裡有英文字。</span>
-                <span class="cta">↑ 載入 →</span>
-              </button>
-              <button data-example="1" class="example-btn gallery-card">
-                <span class="emo">🐷</span>
-                <span class="cap">Farm Life</span>
-                <span class="desc">小豬跟米格魯小狗並排站在農場裡。</span>
-                <span class="cta">↑ 載入 →</span>
-              </button>
-              <button data-example="2" class="example-btn gallery-card">
-                <span class="emo">➗</span>
-                <span class="cap">數學課</span>
-                <span class="desc">戴眼鏡的小男生坐在桌前算數學。</span>
-                <span class="cta">↑ 載入 →</span>
-              </button>
-              <button data-example="3" class="example-btn gallery-card">
-                <span class="emo">🏃</span>
-                <span class="cap">運動會</span>
-                <span class="desc">兩位小學生在跑道上賽跑，同學在旁加油。</span>
-                <span class="cta">↑ 載入 →</span>
-              </button>
-            </div>
+            <div id="gallery-grid" class="gallery-grid"><!-- JS 注入當下分類的 4 個範例 --></div>
           </div>
         </div>
 
@@ -1289,20 +1285,174 @@
     }
     // ========================== EARLY BOOT END ==========================
 
-    const EXAMPLES = [
-      { title: 'Science Class', dialogue: 'Look at this!',
-        character: '一位戴眼鏡的女老師指著黑板，手上拿著一本書',
-        background: '教室，黑板上有英文字' },
-      { title: 'Farm Life', dialogue: 'Hello!',
-        character: '一隻可愛的小豬跟一隻米格魯小狗並排站著',
-        background: '農場，遠處有風車' },
-      { title: '數學時間', dialogue: '',
-        character: '一位戴眼鏡的小學男生坐在桌前算數學',
-        background: '書桌上有作業簿、鉛筆與計算機' },
-      { title: '運動會', dialogue: '加油！',
-        character: '兩位小學生在跑道上賽跑，後方有同學加油',
-        background: '操場，遠方有觀眾席' },
+    // 16 個範例 / 6 分類 — 給國小老師備課最常用的情境
+    const CATEGORIES = [
+      { id: 'school',    em: '🎒', label: '校園' },
+      { id: 'animal',    em: '🐾', label: '動物' },
+      { id: 'festival',  em: '🎊', label: '節慶' },
+      { id: 'food',      em: '🍱', label: '食物' },
+      { id: 'transport', em: '🚉', label: '交通' },
+      { id: 'nature',    em: '🌿', label: '自然' },
     ];
+    const EXAMPLES = [
+      // 校園
+      { cat:'school', emoji:'🔬', label:'Science Class',
+        title:'Science Class', dialogue:'Look at this!',
+        character:'一位戴眼鏡的女老師指著黑板，手上拿著一本書',
+        background:'教室，黑板上有英文字',
+        desc:'戴眼鏡的女老師指著黑板，教室裡有英文字。' },
+      { cat:'school', emoji:'➗', label:'數學課',
+        title:'數學時間', dialogue:'',
+        character:'一位戴眼鏡的小學男生坐在桌前算數學',
+        background:'書桌上有作業簿、鉛筆與計算機',
+        desc:'戴眼鏡的小男生坐在桌前算數學。' },
+      { cat:'school', emoji:'🏃', label:'運動會',
+        title:'運動會', dialogue:'加油！',
+        character:'兩位小學生在跑道上賽跑，後方有同學加油',
+        background:'操場，遠方有觀眾席',
+        desc:'兩位小學生在跑道上賽跑，同學在旁加油。' },
+      { cat:'school', emoji:'📚', label:'圖書館',
+        title:'Library Time', dialogue:'Shhh!',
+        character:'一位小女生在圖書館借書台前借書，雙手捧著書',
+        background:'圖書館，書架上滿是書，牆上有「請保持安靜」的牌子',
+        desc:'小女生在圖書館借書，書架後方滿是書。' },
+
+      // 動物
+      { cat:'animal', emoji:'🐷', label:'Farm Life',
+        title:'Farm Life', dialogue:'Hello!',
+        character:'一隻可愛的小豬跟一隻米格魯小狗並排站著',
+        background:'農場，遠處有風車',
+        desc:'小豬跟米格魯小狗並排站在農場裡。' },
+      { cat:'animal', emoji:'🦁', label:'動物園',
+        title:'動物園一日', dialogue:'哇！',
+        character:'一群小學生圍著欄杆看獅子，獅子在打哈欠',
+        background:'動物園的獅子區，遠處有山和雲',
+        desc:'小朋友圍著欄杆看打哈欠的獅子。' },
+      { cat:'animal', emoji:'🐱', label:'我的寵物',
+        title:'My Pet Cat', dialogue:'Meow~',
+        character:'一隻橘色的胖貓躺在沙發扶手上理毛',
+        background:'客廳，旁邊有一盆植物和窗外灑進的陽光',
+        desc:'橘色胖貓躺在沙發上理毛。' },
+
+      // 節慶
+      { cat:'festival', emoji:'🥮', label:'中秋節',
+        title:'中秋月圓', dialogue:'好圓喔！',
+        character:'一家三口坐在草地上一起吃月餅，抬頭看月亮',
+        background:'夜晚，天空有大大的圓月，遠處有屋頂剪影',
+        desc:'一家三口坐在草地上看月亮、吃月餅。' },
+      { cat:'festival', emoji:'🎁', label:'聖誕節',
+        title:'Merry Christmas', dialogue:'Ho ho ho!',
+        character:'聖誕老人扛著大袋子站在聖誕樹旁邊微笑',
+        background:'客廳，聖誕樹上掛滿裝飾與燈泡',
+        desc:'聖誕老人扛大袋子站在聖誕樹旁。' },
+      { cat:'festival', emoji:'🐉', label:'端午節',
+        title:'端午賽龍舟', dialogue:'加油！',
+        character:'一條龍舟上有六個人賣力划槳，鼓手站在船頭打鼓',
+        background:'河面，岸邊有觀眾揮旗加油',
+        desc:'六人龍舟划槳，鼓手在船頭打鼓。' },
+
+      // 食物
+      { cat:'food', emoji:'🍔', label:'早餐店',
+        title:'我的早餐', dialogue:'謝謝老闆！',
+        character:'一位小男生在早餐店櫃台前接過漢堡跟紅茶',
+        background:'早餐店，櫃台上有菜單和飲料杯',
+        desc:'小男生在早餐店接漢堡跟紅茶。' },
+      { cat:'food', emoji:'🍜', label:'夜市美食',
+        title:'夜市好好吃', dialogue:'好吃！',
+        character:'一個小女生雙手捧著一碗滷肉飯，露出開心的表情',
+        background:'夜市，後方有攤販招牌與一串串燈泡',
+        desc:'小女生捧著滷肉飯笑得開心。' },
+
+      // 交通
+      { cat:'transport', emoji:'🚌', label:'搭公車',
+        title:'Bus to School', dialogue:'請刷卡',
+        character:'小學生背著書包，用悠遊卡刷公車的感應器',
+        background:'公車內部，駕駛座在前方',
+        desc:'小學生背書包用悠遊卡刷公車。' },
+      { cat:'transport', emoji:'🚦', label:'過馬路',
+        title:'安全過馬路', dialogue:'左看右看',
+        character:'一個小學生站在斑馬線旁舉手示意，準備過馬路',
+        background:'十字路口，紅綠燈正顯示綠燈',
+        desc:'小學生在斑馬線旁舉手準備過馬路。' },
+
+      // 自然
+      { cat:'nature', emoji:'🌊', label:'海邊',
+        title:'Beach Day', dialogue:'Wow!',
+        character:'兩個小朋友在沙灘上一起堆沙堡，旁邊有水桶和鏟子',
+        background:'海邊，遠方有海浪和雲',
+        desc:'兩個小朋友在沙灘上堆沙堡。' },
+      { cat:'nature', emoji:'⛰', label:'爬山遠足',
+        title:'登上山頂', dialogue:'我做到了！',
+        character:'一群小學生戴帽子背水壺站在山頂，舉手歡呼',
+        background:'山頂，可以看到遠方的雲海',
+        desc:'小學生爬上山頂舉手歡呼。' },
+    ];
+
+    let _selectedCategory = 'school';
+
+    function renderExamplesTabs() {
+      const wrap = $('examples-tabs');
+      if (!wrap) return;
+      wrap.innerHTML = '';
+      CATEGORIES.forEach((c) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'tab-btn' + (c.id === _selectedCategory ? ' active' : '');
+        btn.innerHTML = `<span class="em">${c.em}</span>${c.label}`;
+        btn.addEventListener('click', () => {
+          _selectedCategory = c.id;
+          renderExamplesTabs();
+          renderExamplesChips();
+          renderGallery();
+        });
+        wrap.appendChild(btn);
+      });
+    }
+    function renderExamplesChips() {
+      const wrap = $('examples-chips');
+      if (!wrap) return;
+      wrap.innerHTML = '';
+      EXAMPLES.filter(e => e.cat === _selectedCategory).forEach((ex) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'chip';
+        btn.textContent = `${ex.emoji} ${ex.label}`;
+        btn.addEventListener('click', () => loadExample(ex));
+        wrap.appendChild(btn);
+      });
+    }
+    function renderGallery() {
+      const wrap = $('gallery-grid');
+      if (!wrap) return;
+      wrap.innerHTML = '';
+      // 同分類前 4 個（不足就有多少給多少）
+      EXAMPLES.filter(e => e.cat === _selectedCategory).slice(0, 4).forEach((ex) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'gallery-card';
+        const esc = (s) => s.replace(/[<>&"']/g, (c) => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]));
+        btn.innerHTML = `
+          <span class="emo">${ex.emoji}</span>
+          <span class="cap">${esc(ex.label)}</span>
+          <span class="desc">${esc(ex.desc || '')}</span>
+          <span class="cta">↑ 載入 →</span>
+        `;
+        btn.addEventListener('click', () => loadExample(ex));
+        wrap.appendChild(btn);
+      });
+    }
+    function loadExample(ex) {
+      fTitle.value = ex.title || '';
+      fChar.value  = ex.character || '';
+      fDlg.value   = ex.dialogue || '';
+      fBg.value    = ex.background || '';
+      refreshPrompt();
+      hideError();
+      if (window.innerWidth < 1100) {
+        document.querySelector('.board')?.scrollIntoView({ behavior:'smooth', block:'start' });
+      }
+      fChar.focus();
+    }
 
     // $ 已在頂端 EARLY BOOT 區宣告，此處不再重複
     const fTitle = $('f-title'),
@@ -1363,21 +1513,10 @@
     });
     refreshPrompt();
 
-    // ===== Examples =====
-    document.querySelectorAll('.example-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const ex = EXAMPLES[+btn.dataset.example];
-        if (!ex) return;
-        fTitle.value = ex.title;
-        fChar.value = ex.character;
-        fDlg.value = ex.dialogue;
-        fBg.value = ex.background;
-        refreshPrompt();
-        // Scroll user back to the board on mobile so they can verify
-        if (window.innerWidth < 1100) fChar.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        fChar.focus();
-      });
-    });
+    // ===== Examples (tabs + chips + gallery，全部 JS 渲染) =====
+    renderExamplesTabs();
+    renderExamplesChips();
+    renderGallery();
 
     // ===== Clear =====
     $('btn-clear').addEventListener('click', () => {
