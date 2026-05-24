@@ -40,7 +40,7 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&family=Noto+Serif+TC:wght@400;700;900&family=Caveat:wght@400;500;700&family=Permanent+Marker&family=Ma+Shan+Zheng&family=ZCOOL+QingKe+HuangYou&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&family=Noto+Serif+TC:wght@400;700;900&family=Caveat:wght@400;500;700&family=Permanent+Marker&family=Ma+Shan+Zheng&family=ZCOOL+QingKe+HuangYou&family=ZCOOL+XiaoWei&family=ZCOOL+KuaiLe&family=Patrick+Hand&family=Architects+Daughter&family=Reenie+Beanie&family=Long+Cang&family=Liu+Jian+Mao+Cao&family=Gochi+Hand&family=Kalam:wght@400;700&family=Shadows+Into+Light&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 
   <script>
     window.__PM_CONFIG = {
@@ -1041,6 +1041,128 @@
       }
     }
 
+    /* =========================================================
+       Tweaks 面板 — 浮動齒輪鈕 + 右側滑入抽屜
+       ========================================================= */
+    .tweaks-fab{
+      position:fixed;right:20px;bottom:20px;z-index:80;
+      width:44px;height:44px;border-radius:50%;
+      background:rgba(31,42,38,.85);color:var(--chalk-yellow);
+      border:1.5px solid rgba(246,197,96,.4);
+      font-size:20px;cursor:pointer;
+      display:grid;place-items:center;
+      box-shadow:0 4px 16px rgba(0,0,0,.4);
+      transition:transform .15s, background .15s;
+    }
+    .tweaks-fab:hover{transform:rotate(45deg);background:rgba(31,42,38,1)}
+
+    .tweaks-backdrop{
+      position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:90;
+      display:none;backdrop-filter:blur(4px);
+    }
+    .tweaks-backdrop.open{display:block}
+
+    .tweaks-panel{
+      position:fixed;top:0;right:-360px;bottom:0;width:340px;z-index:91;
+      background:linear-gradient(180deg, var(--ink-soft) 0%, var(--ink) 100%);
+      box-shadow:-10px 0 30px rgba(0,0,0,.5);
+      transition:right .25s ease-out;
+      overflow-y:auto;
+      padding:24px 22px 80px;
+      color:var(--chalk-white);font-family:var(--font-ui);
+    }
+    .tweaks-panel.open{right:0}
+
+    .tweaks-head{
+      display:flex;justify-content:space-between;align-items:center;
+      padding-bottom:14px;margin-bottom:18px;
+      border-bottom:1px dashed rgba(207,202,176,.2);
+    }
+    .tweaks-head h3{
+      font-family:var(--font-serif);font-weight:900;font-size:18px;margin:0;
+      color:var(--chalk-yellow);letter-spacing:.02em;
+    }
+    .tweaks-close{
+      background:transparent;border:none;color:var(--chalk-soft);
+      font-size:22px;cursor:pointer;line-height:1;padding:4px 8px;
+      border-radius:50%;
+    }
+    .tweaks-close:hover{color:var(--chalk-white);background:rgba(255,255,255,.08)}
+
+    .tweaks-group{margin-bottom:22px}
+    .tweaks-group .group-title{
+      font-family:var(--font-mono);font-size:10px;letter-spacing:.14em;
+      text-transform:uppercase;color:var(--chalk-soft);
+      margin:0 0 10px 0;
+    }
+    .tweaks-row{margin-bottom:14px}
+    .tweaks-row .row-label{
+      font-family:var(--font-ui);font-size:12px;
+      color:rgba(207,202,176,.85);margin-bottom:6px;display:block;
+    }
+
+    /* 色票 */
+    .swatch-row{display:flex;gap:8px}
+    .swatch{
+      width:32px;height:32px;border-radius:50%;cursor:pointer;
+      border:2px solid transparent;
+      transition:all .12s;
+      position:relative;
+    }
+    .swatch:hover{transform:scale(1.08)}
+    .swatch.active{border-color:var(--chalk-white);box-shadow:0 0 0 2px rgba(255,255,255,.15)}
+
+    /* 字型選項列表 */
+    .font-list{
+      display:flex;flex-direction:column;gap:5px;
+      max-height:280px;overflow-y:auto;
+      padding-right:6px;
+    }
+    .font-opt{
+      padding:8px 11px;background:rgba(255,255,255,.04);
+      border:1px solid rgba(255,255,255,.06);border-radius:3px;
+      cursor:pointer;font-size:14px;color:var(--chalk-white);
+      display:flex;justify-content:space-between;align-items:center;
+      transition:all .12s;text-align:left;
+    }
+    .font-opt:hover{background:rgba(255,255,255,.08);border-color:rgba(246,197,96,.3)}
+    .font-opt.active{
+      background:rgba(246,197,96,.12);
+      border-color:var(--chalk-yellow);color:var(--chalk-yellow);
+    }
+    .font-opt .check{font-family:var(--font-serif);font-weight:900;font-size:13px}
+
+    /* 開關 */
+    .switch{
+      display:flex;justify-content:space-between;align-items:center;
+      padding:8px 0;cursor:pointer;
+    }
+    .switch-label{font-size:13px;color:rgba(207,202,176,.85)}
+    .switch-track{
+      width:40px;height:22px;border-radius:11px;
+      background:rgba(255,255,255,.12);
+      position:relative;transition:background .15s;
+    }
+    .switch-track::after{
+      content:"";position:absolute;top:2px;left:2px;
+      width:18px;height:18px;border-radius:50%;
+      background:var(--chalk-soft);
+      transition:transform .2s;
+    }
+    .switch.on .switch-track{background:rgba(246,197,96,.5)}
+    .switch.on .switch-track::after{
+      transform:translateX(18px);background:var(--chalk-yellow);
+    }
+
+    .tweaks-reset{
+      margin-top:18px;width:100%;
+      background:transparent;color:var(--chalk-soft);
+      border:1px dashed rgba(207,202,176,.3);border-radius:3px;
+      padding:9px;font-family:var(--font-mono);font-size:10px;
+      letter-spacing:.14em;text-transform:uppercase;cursor:pointer;
+    }
+    .tweaks-reset:hover{color:var(--chalk-red);border-color:var(--chalk-red)}
+
     /* Toast — 生成成功小提示，bottom 90px 避免跟 SW 更新 banner（bottom 20px）打架 */
     .toast{
       position:fixed;bottom:90px;left:50%;transform:translateX(-50%);
@@ -1349,6 +1471,43 @@
       </div>
     </div>
   </div>
+
+  <!-- ===== Tweaks 浮動齒輪鈕 + 滑入抽屜 ===== -->
+  <button id="tweaks-fab" class="tweaks-fab" title="個人化設定（字型 / 配色 / 黑板）" aria-label="設定">⚙</button>
+  <div id="tweaks-backdrop" class="tweaks-backdrop"></div>
+  <aside id="tweaks-panel" class="tweaks-panel" aria-hidden="true">
+    <div class="tweaks-head">
+      <h3>⚙ 個人化設定</h3>
+      <button id="tweaks-close" class="tweaks-close" aria-label="關閉">×</button>
+    </div>
+
+    <div class="tweaks-group">
+      <p class="group-title">視覺</p>
+      <div class="tweaks-row">
+        <label class="row-label">粉筆強調色</label>
+        <div id="tweaks-accent" class="swatch-row"><!-- JS 注入 5 個色票 --></div>
+      </div>
+      <div class="tweaks-row">
+        <div id="tweaks-dark-room" class="switch">
+          <span class="switch-label">教室壁面變淺</span>
+          <span class="switch-track"></span>
+        </div>
+      </div>
+      <div class="tweaks-row">
+        <div id="tweaks-show-tape" class="switch">
+          <span class="switch-label">紙張頂部膠帶</span>
+          <span class="switch-track"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="tweaks-group">
+      <p class="group-title">粉筆字型</p>
+      <div id="tweaks-chalk-font" class="font-list"><!-- JS 注入 8 種字型 --></div>
+    </div>
+
+    <button id="tweaks-reset" class="tweaks-reset">↺ 重置全部為預設值</button>
+  </aside>
 
   <!-- =====================================================
        列印專用區（screen 完全隱藏 / @media print 才顯示）
@@ -2383,6 +2542,134 @@
     });
 
     renderTemplates();
+
+    // ===== Tweaks 面板（字型 / 配色 / 黑板深淺 / 紙張膠帶）=====
+    const CHALK_PAIRINGS = [
+      { id:'marker',    label:'簽字筆 Permanent Marker',  latin:'Permanent Marker',    cjk:'ZCOOL QingKe HuangYou' },
+      { id:'brush',     label:'粉筆楷書 Caveat',           latin:'Caveat',              cjk:'Ma Shan Zheng' },
+      { id:'flowing',   label:'飄逸草書 Reenie Beanie',    latin:'Reenie Beanie',       cjk:'Liu Jian Mao Cao' },
+      { id:'print',     label:'工整手寫 Patrick Hand',     latin:'Patrick Hand',        cjk:'ZCOOL XiaoWei' },
+      { id:'architect', label:'建築師 Architects Daughter',latin:'Architects Daughter', cjk:'Long Cang' },
+      { id:'kid',       label:'童趣 Gochi Hand',           latin:'Gochi Hand',          cjk:'ZCOOL KuaiLe' },
+      { id:'kalam',     label:'硬筆 Kalam',                latin:'Kalam',               cjk:'Ma Shan Zheng' },
+      { id:'shadow',    label:'影線 Shadows Into Light',   latin:'Shadows Into Light',  cjk:'ZCOOL XiaoWei' },
+    ];
+    const ACCENT_COLORS = [
+      { id:'yellow', hex:'#f6c560', name:'金黃' },
+      { id:'pink',   hex:'#e8a3b4', name:'櫻粉' },
+      { id:'blue',   hex:'#9cc4d8', name:'天藍' },
+      { id:'green',  hex:'#a9d6a3', name:'草綠' },
+      { id:'orange', hex:'#e07c5e', name:'橙紅' },
+    ];
+    const TWEAKS_KEY = 'pm-tweaks';
+    const TWEAKS_DEFAULTS = {
+      accent: 'yellow',
+      chalkFont: 'marker',
+      darkRoom: false,
+      showTape: true,
+    };
+
+    function getTweaks() {
+      try {
+        const v = JSON.parse(localStorage.getItem(TWEAKS_KEY) || '{}');
+        return { ...TWEAKS_DEFAULTS, ...v };
+      } catch { return { ...TWEAKS_DEFAULTS }; }
+    }
+    function saveTweaks(t) {
+      try { localStorage.setItem(TWEAKS_KEY, JSON.stringify(t)); }
+      catch (e) { console.warn('save tweaks failed', e); }
+    }
+
+    function applyTweaks(t) {
+      const root = document.documentElement;
+      const ac = ACCENT_COLORS.find((x) => x.id === t.accent) || ACCENT_COLORS[0];
+      root.style.setProperty('--chalk-yellow', ac.hex);
+      const cp = CHALK_PAIRINGS.find((x) => x.id === t.chalkFont) || CHALK_PAIRINGS[0];
+      root.style.setProperty('--font-chalk',
+        `"${cp.latin}","${cp.cjk}","Noto Serif TC",cursive`);
+      document.body.style.background = t.darkRoom ? '#1a1714' : '#2d2922';
+      // 膠帶顯隱：插一個 inline <style> 控制
+      let tapeStyle = document.getElementById('tweaks-tape-style');
+      if (!tapeStyle) {
+        tapeStyle = document.createElement('style');
+        tapeStyle.id = 'tweaks-tape-style';
+        document.head.appendChild(tapeStyle);
+      }
+      tapeStyle.textContent = t.showTape ? '' : '.paper::before,.paper::after{display:none}';
+    }
+
+    function renderTweaksPanel() {
+      const t = getTweaks();
+      // 色票
+      const accentWrap = $('tweaks-accent');
+      accentWrap.innerHTML = '';
+      ACCENT_COLORS.forEach((c) => {
+        const sw = document.createElement('button');
+        sw.type = 'button';
+        sw.className = 'swatch' + (c.id === t.accent ? ' active' : '');
+        sw.style.background = c.hex;
+        sw.title = c.name;
+        sw.addEventListener('click', () => {
+          const cur = getTweaks();
+          cur.accent = c.id;
+          saveTweaks(cur); applyTweaks(cur); renderTweaksPanel();
+        });
+        accentWrap.appendChild(sw);
+      });
+      // 字型列表
+      const fontWrap = $('tweaks-chalk-font');
+      fontWrap.innerHTML = '';
+      CHALK_PAIRINGS.forEach((cp) => {
+        const opt = document.createElement('button');
+        opt.type = 'button';
+        opt.className = 'font-opt' + (cp.id === t.chalkFont ? ' active' : '');
+        opt.style.fontFamily = `"${cp.latin}","${cp.cjk}","Noto Serif TC",cursive`;
+        opt.innerHTML = `<span>${cp.label}</span>${cp.id === t.chalkFont ? '<span class="check">✓</span>' : ''}`;
+        opt.addEventListener('click', () => {
+          const cur = getTweaks();
+          cur.chalkFont = cp.id;
+          saveTweaks(cur); applyTweaks(cur); renderTweaksPanel();
+        });
+        fontWrap.appendChild(opt);
+      });
+      // 開關狀態
+      $('tweaks-dark-room').classList.toggle('on', !!t.darkRoom);
+      $('tweaks-show-tape').classList.toggle('on', !!t.showTape);
+    }
+
+    $('tweaks-dark-room').addEventListener('click', () => {
+      const cur = getTweaks(); cur.darkRoom = !cur.darkRoom;
+      saveTweaks(cur); applyTweaks(cur); renderTweaksPanel();
+    });
+    $('tweaks-show-tape').addEventListener('click', () => {
+      const cur = getTweaks(); cur.showTape = !cur.showTape;
+      saveTweaks(cur); applyTweaks(cur); renderTweaksPanel();
+    });
+    $('tweaks-reset').addEventListener('click', () => {
+      if (!confirm('重置所有外觀設定為預設值？')) return;
+      saveTweaks({ ...TWEAKS_DEFAULTS });
+      applyTweaks({ ...TWEAKS_DEFAULTS });
+      renderTweaksPanel();
+      showToast('外觀已重置為預設值');
+    });
+
+    // 開合 panel
+    $('tweaks-fab').addEventListener('click', () => {
+      $('tweaks-backdrop').classList.add('open');
+      $('tweaks-panel').classList.add('open');
+      $('tweaks-panel').setAttribute('aria-hidden', 'false');
+    });
+    function closeTweaks() {
+      $('tweaks-backdrop').classList.remove('open');
+      $('tweaks-panel').classList.remove('open');
+      $('tweaks-panel').setAttribute('aria-hidden', 'true');
+    }
+    $('tweaks-close').addEventListener('click', closeTweaks);
+    $('tweaks-backdrop').addEventListener('click', closeTweaks);
+
+    // 頁面載入：套用儲存的 tweaks + render
+    applyTweaks(getTweaks());
+    renderTweaksPanel();
 
     // ===== Keyboard Shortcuts =====
     // Ctrl/Cmd+Enter 任何欄位 → 生成
