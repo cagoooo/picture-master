@@ -14,6 +14,12 @@
   <link rel="shortcut icon" href="./favicon.ico">
   <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
 
+  <!-- PWA — Chrome/Safari/Edge 會跳「安裝到主畫面」提示 -->
+  <link rel="manifest" href="./manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="試卷生圖">
+
   <!-- OG / Twitter cards
        og:image 必須絕對 URL（FB/LINE crawler 在外部 fetch）+ ?v= 版本參數
        讓社群平台每次部署都重抓（LINE 快取最猛，不加會卡舊圖數天） -->

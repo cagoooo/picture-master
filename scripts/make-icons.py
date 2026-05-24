@@ -157,6 +157,11 @@ def make_pngs() -> None:
     draw_icon(180).save(REPO / "apple-touch-icon.png", optimize=True)
     print("✓ apple-touch-icon.png (180x180)")
 
+    # PWA manifest 標準尺寸（192 + 512）
+    draw_icon(192).save(REPO / "icon-192.png", optimize=True)
+    draw_icon(512).save(REPO / "icon-512.png", optimize=True)
+    print("✓ icon-192.png / icon-512.png (PWA manifest)")
+
     # 傳統 favicon PNG fallback
     icon_32 = draw_icon(32)
     icon_16 = draw_icon(16)

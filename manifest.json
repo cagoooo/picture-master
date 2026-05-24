@@ -1,0 +1,58 @@
+{
+  "name": "試卷生圖 Studio · 阿凱老師",
+  "short_name": "試卷生圖",
+  "description": "黑板 × 紙張，老師備課一鍵生黑白線稿。學習單 / 試卷 / 著色頁。",
+  "lang": "zh-TW",
+  "dir": "ltr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#2d2922",
+  "theme_color": "#2b3a35",
+  "categories": ["education", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "favicon-32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "新增學習單",
+      "short_name": "新增",
+      "description": "回首頁開始填寫四個欄位產生新插畫",
+      "url": "./?utm_source=pwa_shortcut"
+    }
+  ]
+}
