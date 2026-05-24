@@ -235,7 +235,35 @@
     }
     .board-sub{
       font-family:var(--font-chalk);font-size:17px;color:var(--chalk-soft);
-      margin:0 0 28px;letter-spacing:.02em;
+      margin:0 0 18px;letter-spacing:.02em;
+    }
+
+    /* 風格切換 pill row */
+    .style-picker{
+      display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+      margin-bottom:24px;padding-bottom:18px;
+      border-bottom:1px dashed rgba(240,235,216,.12);
+    }
+    .style-picker .lbl{
+      font-family:var(--font-mono);font-size:10px;letter-spacing:.14em;
+      text-transform:uppercase;color:var(--chalk-soft);margin-right:4px;
+    }
+    .style-btn{
+      font-family:var(--font-chalk);font-size:14px;color:var(--chalk-white);
+      padding:5px 11px;border:1.5px solid rgba(207,202,176,.25);border-radius:999px;
+      background:transparent;cursor:pointer;line-height:1.2;
+      display:inline-flex;align-items:center;gap:5px;
+      transition:all .12s;
+    }
+    .style-btn:hover{border-color:var(--chalk-white);color:var(--chalk-white)}
+    .style-btn.active{
+      background:rgba(246,197,96,.12);color:var(--chalk-yellow);
+      border-color:var(--chalk-yellow);
+    }
+    .style-btn .em{font-size:13px;line-height:1}
+    .style-desc{
+      font-family:var(--font-chalk);font-size:12px;color:rgba(207,202,176,.55);
+      flex-basis:100%;line-height:1.2;margin-top:-2px;font-style:italic;
     }
 
     .fields{display:grid;grid-template-columns:1fr 1fr;gap:18px 22px;position:relative;z-index:1}
@@ -1091,6 +1119,8 @@
           </div>
           <p class="board-sub">寫下你要的角色、對話、場景。標題與背景可以留空。</p>
 
+          <div id="style-picker" class="style-picker"><!-- JS 注入 5 個風格鈕 --></div>
+
           <div class="fields">
             <div class="field">
               <label>
@@ -1359,6 +1389,10 @@
     let _currentStatus = 'idle';
     let _lastImages = [];     // 最近一次成功生成的圖片 URLs，供列印 / 歷史使用
     let _promptEditMode = false; // prompt 編輯模式（true 時 refreshPrompt 不覆蓋）
+    let _selectedStyle = (function () {
+      try { return localStorage.getItem('pm-style') || 'line-art'; }
+      catch { return 'line-art'; }
+    })();
 
     // ==========================================================
     // ⚡ EARLY BOOT — DOM helper / IS_LOCAL / SW 註冊放最頂端
@@ -1747,15 +1781,37 @@
     // ===== Prompt Synthesis =====
     const CJK_RE = /[぀-ヿ㐀-䶿一-鿿＀-￯]/;
 
+    // 5 種風格樣板 — 切換改變 prompt 的 lead + style 段
+    const STYLE_PRESETS = [
+      { id:'line-art', label:'黑白線稿', em:'✏️', desc:'純黑白線稿 · 列印不吃墨水 · 適合著色頁',
+        lead:'Generate a minimalist black and white vector line art image, coloring book style.',
+        style:'Style: Thick bold black outlines, pure white background, no shading, no gradients, no colors, no gray scales, high contrast. Professional comic-strip layout. Suitable as a coloring page for kids. No frame around the image.' },
+      { id:'cartoon', label:'卡通彩色', em:'🎨', desc:'飽和色塊 · 兒童繪本風 · 黑色粗線條',
+        lead:'Generate a vibrant cartoon-style illustration suitable for children.',
+        style:'Style: Bold black outlines with flat saturated colors filling each shape. Friendly cheerful cartoon style. No gradients, no realistic shading. White background. Approachable for elementary school audience. No frame.' },
+      { id:'manga', label:'漫畫風', em:'💥', desc:'日系少年漫 · 網點 · 動感',
+        lead:'Generate a Japanese manga style illustration.',
+        style:'Style: Japanese manga style, dynamic poses, expressive eyes, clean ink-pen line work, screentone (halftone dot) shading for depth, predominantly black and white with occasional spot color accents. Speed lines for motion. No frame.' },
+      { id:'watercolor', label:'水彩', em:'🖌️', desc:'柔和暈染 · 故事繪本氛圍',
+        lead:'Generate a gentle watercolor painting illustration.',
+        style:'Style: Soft watercolor painting, gentle washes of muted pastel colors, visible brush strokes and slight paper texture, dreamy and warm atmosphere. Mostly white background with soft color zones. Suitable for storybook illustration.' },
+      { id:'realistic', label:'寫實照片', em:'📷', desc:'擬真攝影 · 自然光 · DSLR',
+        lead:'Generate a photorealistic illustration that looks like a high-quality photograph.',
+        style:'Style: Photorealistic, natural lighting, detailed textures, sharp focus, professional photography quality. Soft background bokeh. As if captured by a DSLR camera with a 50mm lens.' },
+    ];
+
+    function getStylePreset() {
+      return STYLE_PRESETS.find((p) => p.id === _selectedStyle) || STYLE_PRESETS[0];
+    }
+
     function buildPrompt() {
       const title = fTitle.value.trim();
       const character = fChar.value.trim();
       const dialogue = fDlg.value.trim();
       const background = fBg.value.trim();
 
-      const lines = [
-        'Generate a minimalist black and white vector line art image, coloring book style.',
-      ];
+      const preset = getStylePreset();
+      const lines = [preset.lead];
       const textElements = [];
       const cjkTexts = [];
 
@@ -1778,7 +1834,7 @@
       if (character)  lines.push(`Subject: ${character}.`);
       if (background) lines.push(`Setting: ${background}.`);
 
-      lines.push('Style: Thick bold black outlines, pure white background, no shading, no gradients, no colors, no gray scales, high contrast. Professional comic-strip layout. Suitable as a coloring page for kids. No frame around the image.');
+      lines.push(preset.style);
       if (cjkTexts.length) lines.push('Render any Chinese / CJK text crisply and accurately as provided, using standard Traditional Chinese typography.');
       return lines.join('\n');
     }
@@ -1798,7 +1854,39 @@
     });
     refreshPrompt();
 
+    // ===== Style picker（黑白線稿 / 卡通 / 漫畫 / 水彩 / 寫實）=====
+    function renderStylePicker() {
+      const wrap = $('style-picker');
+      if (!wrap) return;
+      wrap.innerHTML = '';
+      const lbl = document.createElement('span');
+      lbl.className = 'lbl';
+      lbl.textContent = '🎨 風格';
+      wrap.appendChild(lbl);
+      STYLE_PRESETS.forEach((p) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'style-btn' + (p.id === _selectedStyle ? ' active' : '');
+        btn.innerHTML = `<span class="em">${p.em}</span>${p.label}`;
+        btn.title = p.desc;
+        btn.addEventListener('click', () => {
+          _selectedStyle = p.id;
+          try { localStorage.setItem('pm-style', p.id); } catch {}
+          renderStylePicker();      // 重渲染 active 狀態
+          refreshPrompt();          // 更新 prompt 預覽
+          showToast(`已切換到「${p.em} ${p.label}」風格`, 1200);
+        });
+        wrap.appendChild(btn);
+      });
+      // 當前風格描述
+      const desc = document.createElement('span');
+      desc.className = 'style-desc';
+      desc.textContent = '↑ ' + getStylePreset().desc;
+      wrap.appendChild(desc);
+    }
+
     // ===== Examples (tabs + chips + gallery，全部 JS 渲染) =====
+    renderStylePicker();    // 5 種風格切換鈕
     renderThemePack();      // 當月主題包（端午 / 母親節 / 教師節...）
     renderExamplesTabs();
     renderExamplesChips();
