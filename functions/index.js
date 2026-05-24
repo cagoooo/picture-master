@@ -31,7 +31,7 @@ setGlobalOptions({
 const GEMINI_API_KEY = defineSecret('GEMINI_API_KEY');
 const TURNSTILE_SECRET = defineSecret('TURNSTILE_SECRET');
 
-const DAILY_QUOTA = 30;
+const DAILY_QUOTA = 5;
 const PLACEHOLDER = 'PLACEHOLDER_NOT_CONFIGURED';
 
 const ALLOWED_ORIGINS = [
