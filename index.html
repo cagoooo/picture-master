@@ -666,6 +666,106 @@
     }
     .errorbar .x{color:var(--chalk-red);font-family:var(--font-serif);font-weight:900}
 
+    /* =========================================================
+       Print toolbar（生成完顯示，讓老師填學習單標題後一鍵列印）
+       ========================================================= */
+    .print-toolbar{
+      margin-top:18px;padding:14px 16px;
+      background:rgba(31,42,38,.04);
+      border:1px dashed var(--paper-line);
+      border-radius:3px;
+      display:flex;gap:10px;align-items:center;flex-wrap:wrap;
+    }
+    .print-toolbar .ws-title-input{
+      flex:1;min-width:200px;
+      padding:9px 12px;border:1px solid var(--paper-line);
+      border-radius:2px;background:#fff;
+      font-family:var(--font-serif);font-size:14px;color:var(--paper-ink);
+      outline:none;
+    }
+    .print-toolbar .ws-title-input:focus{border-color:var(--paper-ink)}
+    .print-toolbar .ws-title-input::placeholder{color:var(--paper-muted);font-size:13px}
+    .btn-print{
+      background:var(--paper-ink);color:var(--paper);
+      border:none;padding:10px 18px;border-radius:2px;
+      font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;
+      text-transform:uppercase;font-weight:700;cursor:pointer;
+      display:inline-flex;align-items:center;gap:7px;
+    }
+    .btn-print:hover{background:#000}
+    .print-toolbar .hint{
+      font-family:var(--font-mono);font-size:9.5px;letter-spacing:.1em;
+      color:var(--paper-muted);text-transform:uppercase;
+      flex-basis:100%;margin-top:-2px;
+    }
+
+    /* =========================================================
+       列印專用區 — 螢幕完全隱藏，@media print 才顯示
+       依 pdf-export-print-best-practice skill：絕不用 jsPDF/html2pdf
+       ========================================================= */
+    .worksheet-print{display:none}
+
+    @media print {
+      /* 螢幕上的東西全部消失 */
+      body > * { display:none !important; }
+      .worksheet-print {
+        display:block !important;
+        margin:0;padding:0;
+        background:#fff !important;color:#000;
+        font-family:"Noto Serif TC","Songti TC",serif;
+      }
+      body { margin:0;padding:0;background:#fff !important; }
+      @page { size:A4 portrait; margin:1.5cm; }
+
+      .ws-header{
+        border-bottom:2pt solid #000;
+        padding-bottom:5mm;margin-bottom:8mm;
+      }
+      .ws-header h1{
+        font-size:22pt;font-weight:900;
+        margin:0 0 5mm 0;text-align:center;letter-spacing:1pt;
+      }
+      .ws-meta{
+        display:flex;justify-content:space-between;gap:8mm;
+        font-size:11pt;font-weight:500;
+      }
+      .ws-meta span{white-space:nowrap}
+
+      .ws-images{
+        display:grid;grid-template-columns:1fr 1fr;
+        gap:6mm;margin-bottom:8mm;
+      }
+      .ws-images figure{
+        margin:0;border:1pt solid #000;padding:2mm;
+        display:flex;flex-direction:column;
+        page-break-inside:avoid;break-inside:avoid;
+      }
+      .ws-images img{
+        width:100%;height:auto;aspect-ratio:1/1;
+        object-fit:contain;display:block;
+      }
+      .ws-images figcaption{
+        font-size:8pt;color:#444;text-align:center;
+        padding-top:1.5mm;font-weight:500;
+      }
+
+      .ws-notes-title{
+        font-size:11pt;font-weight:700;
+        margin:0 0 4mm 0;color:#000;
+      }
+      .ws-line{
+        border-bottom:0.5pt solid #999;
+        height:0;margin-bottom:7mm;
+      }
+
+      .ws-footer{
+        position:fixed;bottom:1cm;left:1.5cm;right:1.5cm;
+        border-top:0.5pt solid #999;
+        padding-top:2mm;text-align:center;
+        font-size:8pt;color:#666;
+      }
+    }
+
     /* Toast — 生成成功小提示，bottom 90px 避免跟 SW 更新 banner（bottom 20px）打架 */
     .toast{
       position:fixed;bottom:90px;left:50%;transform:translateX(-50%);
@@ -886,6 +986,16 @@
 
         <!-- Ready state -->
         <div id="output-ready" class="output ready" style="display:none"></div>
+
+        <!-- Print toolbar — 生成完才顯示 -->
+        <div id="print-toolbar" class="print-toolbar" style="display:none">
+          <input id="ws-title-input" class="ws-title-input" type="text"
+                 placeholder="學習單標題（例：五年級英文 Unit 3）— 留空用「角色描述」當標題">
+          <button id="btn-print-worksheet" class="btn-print">
+            🖨 列印 A4 學習單
+          </button>
+          <span class="hint">瀏覽器列印對話框 → 目的地選「另存為 PDF」即可下載</span>
+        </div>
       </section>
 
       <!-- Prompt accordion -->
@@ -953,6 +1063,33 @@
     </div>
   </div>
 
+  <!-- =====================================================
+       列印專用區（screen 完全隱藏 / @media print 才顯示）
+       依 pdf-export-print-best-practice skill — 用 window.print()
+       + @media print CSS，絕不碰 jsPDF/html2pdf/html2canvas
+       ===================================================== -->
+  <div class="worksheet-print" id="worksheet-print" aria-hidden="true">
+    <header class="ws-header">
+      <h1 id="ws-print-title">學習單</h1>
+      <div class="ws-meta">
+        <span>班級：________　座號：____　姓名：____________</span>
+        <span>日期：____ / ____ / ____</span>
+      </div>
+    </header>
+    <main class="ws-images" id="ws-images"><!-- JS 注入 --></main>
+    <section class="ws-notes">
+      <p class="ws-notes-title">✏️ 我的觀察與作答</p>
+      <div class="ws-line"></div>
+      <div class="ws-line"></div>
+      <div class="ws-line"></div>
+      <div class="ws-line"></div>
+      <div class="ws-line"></div>
+    </section>
+    <footer class="ws-footer">
+      試卷生圖 Studio · Made by 阿凱老師 @ 桃園市龍潭區石門國民小學
+    </footer>
+  </div>
+
   <script>
   (() => {
     'use strict';
@@ -962,6 +1099,7 @@
 
     // 模組級狀態 — 放最上面避免 TDZ
     let _currentStatus = 'idle';
+    let _lastImages = [];  // 最近一次成功生成的圖片 URLs，供列印 / 歷史使用
 
     // ==========================================================
     // ⚡ EARLY BOOT — DOM helper / IS_LOCAL / SW 註冊放最頂端
@@ -1316,6 +1454,9 @@
       elEmpty.style.display   = (s === 'idle' || s === 'error') ? '' : 'none';
       elLoading.style.display = (s === 'loading') ? '' : 'none';
       elReady.style.display   = (s === 'ready') ? '' : 'none';
+      // 列印工具列只在 ready 狀態顯示
+      const pt = $('print-toolbar');
+      if (pt) pt.style.display = (s === 'ready') ? '' : 'none';
       let dot = 'idle', text = 'STANDBY';
       if (s === 'loading') { dot = 'busy'; text = 'GENERATING'; }
       else if (s === 'ready') { dot = 'live'; text = `READY · ${info?.count || 0} IMAGES`; }
@@ -1347,6 +1488,47 @@
     function hideError() {
       $('errorbar').style.display = 'none';
     }
+
+    // ===== Print Worksheet (A4) =====
+    // 用 window.print() + @media print CSS（依 pdf-export-print-best-practice skill）
+    $('btn-print-worksheet').addEventListener('click', () => {
+      if (!_lastImages.length) {
+        showToast('沒有可列印的圖片，請先生成');
+        return;
+      }
+      // 標題優先序：toolbar 輸入 > 表單 title > 角色描述前 12 字 > 預設「學習單」
+      const fromInput = $('ws-title-input').value.trim();
+      const fromForm  = fTitle.value.trim();
+      const fromChar  = fChar.value.trim().slice(0, 12);
+      const title = fromInput || fromForm || fromChar || '學習單';
+      $('ws-print-title').textContent = title;
+
+      // 注入圖片到列印區
+      const grid = $('ws-images');
+      grid.innerHTML = '';
+      _lastImages.forEach((src, i) => {
+        const fig = document.createElement('figure');
+        const img = document.createElement('img');
+        img.src = src;
+        img.alt = `插畫 ${i + 1}`;
+        const cap = document.createElement('figcaption');
+        cap.textContent = `圖 ${i + 1}`;
+        fig.appendChild(img);
+        fig.appendChild(cap);
+        grid.appendChild(fig);
+      });
+
+      // 等 base64 image 解碼完才呼叫 print，否則 print preview 會空白
+      Promise.all(
+        Array.from(grid.querySelectorAll('img')).map((im) =>
+          im.complete ? Promise.resolve()
+            : new Promise((r) => { im.onload = im.onerror = r; })
+        )
+      ).then(() => {
+        showToast('開啟列印對話框…');
+        setTimeout(() => window.print(), 150);
+      });
+    });
 
     // ===== Generate =====
     $('btn-generate').addEventListener('click', async () => {
@@ -1434,6 +1616,7 @@
 
     // ===== Render Images =====
     function renderImages(images) {
+      _lastImages = images.slice();  // 保存供列印 / 歷史使用
       const grid = elReady;
       grid.innerHTML = '';
       images.forEach((src, i) => {
