@@ -960,9 +960,121 @@
     const VERSION = 'v0.5.0';
     const DAILY_QUOTA = 5;
 
-    // 模組級狀態 — 放最上面避免 TDZ（updateGenerateButton 在 refreshQuotaUI
-    // 初始化時就會被叫到，那時若 let _currentStatus 尚未初始化會炸 ReferenceError）
+    // 模組級狀態 — 放最上面避免 TDZ
     let _currentStatus = 'idle';
+
+    // ==========================================================
+    // ⚡ EARLY BOOT — DOM helper / IS_LOCAL / SW 註冊放最頂端
+    // 防呆：後段 init 若 throw（TDZ / null deref 等）會中斷 IIFE，
+    // 但 SW 機制已先註冊好 → hotfix push 後使用者仍會收到 banner
+    // 而不會卡在壞版死循環裡。
+    // ==========================================================
+    const $ = (id) => document.getElementById(id);
+    const IS_LOCAL = ['localhost', '127.0.0.1', ''].includes(location.hostname);
+    const BUILD_VERSION_BAKED = '__BUILD_VERSION__';
+
+    // 版本顯示 — 用 try/catch 包，避免某個 element 缺失把 SW 註冊拖下水
+    try {
+      const versionDisplay = BUILD_VERSION_BAKED.startsWith('__')
+        ? VERSION : `${VERSION} · ${BUILD_VERSION_BAKED}`;
+      const vt  = $('version-tag');
+      const vtf = $('version-tag-footer');
+      if (vt)  vt.textContent  = versionDisplay;
+      if (vtf) vtf.textContent = versionDisplay;
+    } catch (e) { console.warn('version display failed', e); }
+
+    // Service Worker + 雙線更新偵測（依 pwa-cache-bust skill）
+    if (!IS_LOCAL && 'serviceWorker' in navigator) {
+      let bannerShown = false;
+
+      function showUpdateBanner(newVer) {
+        if (bannerShown) return;
+        bannerShown = true;
+        const banner = document.createElement('div');
+        banner.id = 'sw-update-banner';
+        banner.style.cssText = `
+          position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+          background: #1f2a26; color: #f0ebd8; padding: 14px 22px; border-radius: 4px;
+          font-size: 13px; font-weight: 600; box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+          z-index: 9999; display: flex; gap: 14px; align-items: center;
+          border: 1px solid rgba(246,197,96,.4);
+          font-family: var(--font-mono); letter-spacing: .04em;
+          animation: slideUp .35s ease-out;
+        `;
+        banner.innerHTML = `
+          <span>🎉 有新版本可用${newVer ? ` (${String(newVer).slice(0, 20)})` : ''}</span>
+          <button id="sw-reload-btn" style="background:#f6c560;color:#1a1410;border:none;
+            padding:7px 14px;border-radius:3px;font-weight:900;cursor:pointer;font-size:12px;
+            letter-spacing:.04em;font-family:var(--font-mono);">
+            立即更新
+          </button>
+          <button id="sw-dismiss-btn" style="background:transparent;color:#cfcab0;border:none;
+            cursor:pointer;font-size:18px;line-height:1;padding:0 4px;">×</button>
+        `;
+        document.body.appendChild(banner);
+        document.getElementById('sw-reload-btn').onclick = async () => {
+          try {
+            const keys = await caches.keys();
+            await Promise.all(keys.map((k) => caches.delete(k)));
+          } catch {}
+          location.reload();
+        };
+        document.getElementById('sw-dismiss-btn').onclick = () => {
+          banner.remove();
+          bannerShown = false;
+        };
+        const styleTag = document.createElement('style');
+        styleTag.textContent = '@keyframes slideUp { from { opacity:0; transform: translate(-50%, 20px); } to { opacity:1; transform: translate(-50%, 0); } }';
+        document.head.appendChild(styleTag);
+      }
+
+      // 線 A: SW lifecycle events
+      navigator.serviceWorker
+        .register('./sw.js', { updateViaCache: 'none' })
+        .then((reg) => {
+          reg.addEventListener('updatefound', () => {
+            const newWorker = reg.installing;
+            if (!newWorker) return;
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                showUpdateBanner();
+              }
+            });
+          });
+          reg.update().catch(() => {});
+        })
+        .catch((e) => console.warn('SW register failed', e));
+
+      // 線 A.2: 收 SW activate 的 postMessage
+      navigator.serviceWorker.addEventListener('message', (e) => {
+        if (e.data?.type === 'SW_ACTIVATED') {
+          if (BUILD_VERSION_BAKED.startsWith('__') || e.data.version === BUILD_VERSION_BAKED) return;
+          showUpdateBanner(e.data.version);
+        }
+      });
+
+      // 線 B: polling version.json (CDN cache 兜底)
+      async function checkVersion() {
+        try {
+          const r = await fetch(`./version.json?t=${Date.now()}`, { cache: 'no-store' });
+          if (!r.ok) return;
+          const data = await r.json();
+          if (BUILD_VERSION_BAKED.startsWith('__')) return;
+          if (data.version && data.version !== BUILD_VERSION_BAKED) {
+            showUpdateBanner(data.version);
+          }
+        } catch {}
+      }
+      window.addEventListener('focus', checkVersion);
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') checkVersion();
+      });
+      window.addEventListener('pageshow', (e) => { if (e.persisted) checkVersion(); });
+      window.addEventListener('online', checkVersion);
+      setTimeout(checkVersion, 5_000);
+      setInterval(checkVersion, 3 * 60 * 1000);
+    }
+    // ========================== EARLY BOOT END ==========================
 
     const EXAMPLES = [
       { title: 'Science Class', dialogue: 'Look at this!',
@@ -979,7 +1091,7 @@
         background: '操場，遠方有觀眾席' },
     ];
 
-    const $ = (id) => document.getElementById(id);
+    // $ 已在頂端 EARLY BOOT 區宣告，此處不再重複
     const fTitle = $('f-title'),
           fChar  = $('f-character'),
           fDlg   = $('f-dialogue'),
@@ -1134,7 +1246,7 @@
     refreshQuotaUI();
 
     // ===== Mode + Backend =====
-    const IS_LOCAL = ['localhost', '127.0.0.1', ''].includes(location.hostname);
+    // IS_LOCAL 已在頂端 EARLY BOOT 區宣告
     if (IS_LOCAL) $('mode-indicator').classList.add('show');
 
     const CFG = window.__PM_CONFIG || {};
@@ -1381,105 +1493,7 @@
       return 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
     }
 
-    // ===== Version display =====
-    const BUILD_VERSION_BAKED = '__BUILD_VERSION__';
-    const versionDisplay = BUILD_VERSION_BAKED.startsWith('__')
-      ? VERSION
-      : `${VERSION} · ${BUILD_VERSION_BAKED}`;
-    $('version-tag').textContent = versionDisplay;
-    $('version-tag-footer').textContent = versionDisplay;
-
-    // ===== Service Worker + Update Banner (dual-line per pwa-cache-bust skill) =====
-    if (!IS_LOCAL && 'serviceWorker' in navigator) {
-      let bannerShown = false;
-
-      function showUpdateBanner(newVer) {
-        if (bannerShown) return;
-        bannerShown = true;
-        const banner = document.createElement('div');
-        banner.id = 'sw-update-banner';
-        banner.style.cssText = `
-          position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-          background: #1f2a26; color: #f0ebd8; padding: 14px 22px; border-radius: 4px;
-          font-size: 13px; font-weight: 600; box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-          z-index: 9999; display: flex; gap: 14px; align-items: center;
-          border: 1px solid rgba(246,197,96,.4);
-          font-family: var(--font-mono); letter-spacing: .04em;
-          animation: slideUp .35s ease-out;
-        `;
-        banner.innerHTML = `
-          <span>🎉 有新版本可用${newVer ? ` (${String(newVer).slice(0, 20)})` : ''}</span>
-          <button id="sw-reload-btn" style="background:#f6c560;color:#1a1410;border:none;
-            padding:7px 14px;border-radius:3px;font-weight:900;cursor:pointer;font-size:12px;
-            letter-spacing:.04em;font-family:var(--font-mono);">
-            立即更新
-          </button>
-          <button id="sw-dismiss-btn" style="background:transparent;color:#cfcab0;border:none;
-            cursor:pointer;font-size:18px;line-height:1;padding:0 4px;">×</button>
-        `;
-        document.body.appendChild(banner);
-        document.getElementById('sw-reload-btn').onclick = async () => {
-          try {
-            const keys = await caches.keys();
-            await Promise.all(keys.map((k) => caches.delete(k)));
-          } catch {}
-          location.reload();
-        };
-        document.getElementById('sw-dismiss-btn').onclick = () => {
-          banner.remove();
-          bannerShown = false;
-        };
-        const styleTag = document.createElement('style');
-        styleTag.textContent = '@keyframes slideUp { from { opacity:0; transform: translate(-50%, 20px); } to { opacity:1; transform: translate(-50%, 0); } }';
-        document.head.appendChild(styleTag);
-      }
-
-      // 線 A: SW lifecycle events
-      navigator.serviceWorker
-        .register('./sw.js', { updateViaCache: 'none' })
-        .then((reg) => {
-          reg.addEventListener('updatefound', () => {
-            const newWorker = reg.installing;
-            if (!newWorker) return;
-            newWorker.addEventListener('statechange', () => {
-              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                showUpdateBanner();
-              }
-            });
-          });
-          reg.update().catch(() => {});
-        })
-        .catch((e) => console.warn('SW register failed', e));
-
-      // 線 A.2: 收 SW activate 的 postMessage
-      navigator.serviceWorker.addEventListener('message', (e) => {
-        if (e.data?.type === 'SW_ACTIVATED') {
-          if (BUILD_VERSION_BAKED.startsWith('__') || e.data.version === BUILD_VERSION_BAKED) return;
-          showUpdateBanner(e.data.version);
-        }
-      });
-
-      // 線 B: polling version.json (CDN cache 兜底)
-      async function checkVersion() {
-        try {
-          const r = await fetch(`./version.json?t=${Date.now()}`, { cache: 'no-store' });
-          if (!r.ok) return;
-          const data = await r.json();
-          if (BUILD_VERSION_BAKED.startsWith('__')) return;
-          if (data.version && data.version !== BUILD_VERSION_BAKED) {
-            showUpdateBanner(data.version);
-          }
-        } catch {}
-      }
-      window.addEventListener('focus', checkVersion);
-      document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') checkVersion();
-      });
-      window.addEventListener('pageshow', (e) => { if (e.persisted) checkVersion(); });
-      window.addEventListener('online', checkVersion);
-      setTimeout(checkVersion, 5_000);
-      setInterval(checkVersion, 3 * 60 * 1000);
-    }
+    // 版本顯示 + SW 註冊已搬到 IIFE 頂端 EARLY BOOT 區
   })();
   </script>
 </body>
