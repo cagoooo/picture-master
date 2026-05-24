@@ -631,12 +631,23 @@
       padding:8px;display:flex;flex-direction:column;gap:6px;
       text-align:left;font:inherit;
       transition:transform .12s, box-shadow .12s, border-color .12s;
+      position:relative;
     }
     .history-card:hover{
       transform:translateY(-2px);
       box-shadow:0 6px 14px -4px rgba(0,0,0,.4);
       border-color:var(--chalk-yellow);
     }
+    .history-del{
+      position:absolute;top:4px;right:4px;z-index:2;
+      width:22px;height:22px;border-radius:50%;
+      background:rgba(31,28,20,.55);color:#fff;border:none;
+      font-family:var(--font-serif);font-size:14px;font-weight:900;line-height:1;
+      cursor:pointer;display:grid;place-items:center;
+      opacity:.5;transition:opacity .15s, background .15s;
+    }
+    .history-card:hover .history-del{opacity:1}
+    .history-del:hover{background:var(--chalk-red);opacity:1}
     .history-thumbs{
       display:grid;grid-template-columns:1fr 1fr;gap:4px;aspect-ratio:2/1;
     }
@@ -1808,13 +1819,22 @@
     // ===== History (localStorage 最近 10 筆壓縮縮圖) =====
     const HISTORY_KEY = 'pm-history';
     const HISTORY_MAX = 10;
+    const HISTORY_TTL_MS = 7 * 24 * 60 * 60 * 1000;  // 7 天過期自動清
     const THUMB_SIZE = 256;       // 壓成 256x256 (~30KB jpeg)
     const THUMB_QUALITY = 0.72;
 
     function getHistory() {
       try {
         const v = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
-        return Array.isArray(v) ? v : [];
+        if (!Array.isArray(v)) return [];
+        // 過濾 7 天前的紀錄
+        const cutoff = Date.now() - HISTORY_TTL_MS;
+        const fresh = v.filter(e => e && typeof e.ts === 'number' && e.ts >= cutoff);
+        // 如果有舊紀錄被淘汰，回寫
+        if (fresh.length !== v.length) {
+          try { localStorage.setItem(HISTORY_KEY, JSON.stringify(fresh)); } catch {}
+        }
+        return fresh;
       } catch { return []; }
     }
     function saveHistory(arr) {
@@ -1893,6 +1913,7 @@
         const date = d.toLocaleDateString('zh-TW', { month: '2-digit', day: '2-digit' });
         const esc = (s) => s.replace(/[<>&"']/g, (c) => ({ '<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;' }[c]));
         card.innerHTML = `
+          <button class="history-del" type="button" data-del="${realIdx}" title="刪除這筆">×</button>
           <div class="history-thumbs">
             <img src="${e.thumbs[0] || ''}" alt="作品 1">
             <img src="${e.thumbs[1] || e.thumbs[0] || ''}" alt="作品 2">
@@ -1902,9 +1923,27 @@
             <span class="ts">${date} ${time}</span>
           </div>
         `;
-        card.addEventListener('click', () => loadHistoryEntry(realIdx));
+        card.addEventListener('click', (ev) => {
+          // 點到 × 鈕 → 不要載入欄位，改執行刪除
+          if (ev.target.classList.contains('history-del')) {
+            ev.stopPropagation();
+            deleteHistoryEntry(realIdx);
+            return;
+          }
+          loadHistoryEntry(realIdx);
+        });
         grid.appendChild(card);
       });
+    }
+
+    function deleteHistoryEntry(idx) {
+      const arr = getHistory();
+      if (!arr[idx]) return;
+      if (!confirm('刪除這一筆歷史紀錄？')) return;
+      arr.splice(idx, 1);
+      saveHistory(arr);
+      renderHistory();
+      showToast('已刪除 1 筆');
     }
 
     function loadHistoryEntry(idx) {
