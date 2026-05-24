@@ -24,6 +24,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Inject BUILD_VERSION into sw.js / version.json / index.html
+        run: |
+          SHORT_SHA="${GITHUB_SHA:0:7}"
+          BUILD_VERSION="$(date -u +%Y%m%d-%H%M)-${SHORT_SHA}"
+          echo "BUILD_VERSION=${BUILD_VERSION}"
+          sed -i "s|__BUILD_VERSION__|${BUILD_VERSION}|g" sw.js
+          sed -i "s|__BUILD_VERSION__|${BUILD_VERSION}|g" index.html
+          # Rewrite version.json (preserve notes from commit subject)
+          NOTES=$(git log -1 --pretty=%s | sed 's/"/\\"/g' | head -c 200)
+          printf '{"version":"%s","notes":"%s","builtAt":"%s"}\n' \
+            "$BUILD_VERSION" "$NOTES" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > version.json
+          echo "✅ Injected version: $BUILD_VERSION"
+
       - name: Inject Turnstile site key
         env:
           TURNSTILE_SITE_KEY: ${{ secrets.TURNSTILE_SITE_KEY }}
