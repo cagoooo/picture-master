@@ -139,6 +139,7 @@
               <div class="my-templates-head">
                 <span class="lbl">★ 我的範本</span>
                 <button id="btn-save-tpl" class="btn-save-tpl" type="button" title="把當前 4 欄位存成範本">+ 存為範本</button>
+                <button id="btn-batch-mode" class="btn-batch" type="button" title="上傳 CSV 一次生 N 張">📊 批次模式</button>
               </div>
               <div id="my-templates-chips" class="my-templates-chips"><!-- JS 注入 --></div>
             </div>
@@ -360,6 +361,50 @@
 
     <button id="tweaks-reset" class="tweaks-reset">↺ 重置全部為預設值</button>
   </aside>
+
+  <!-- ===== Batch Modal — CSV 一次生 N 組 ===== -->
+  <div id="batch-modal" class="batch-modal" role="dialog" aria-modal="true" aria-label="批次模式">
+    <div class="batch-card">
+      <button id="batch-close" class="batch-close" aria-label="關閉">×</button>
+      <h3>📊 批次模式 · CSV 一次生 N 組</h3>
+      <p class="batch-intro">
+        上傳 CSV 檔（標頭：<code>title,character,dialogue,background</code>），
+        系統會逐筆送 OpenAI 生圖。<br>
+        每行用 <b>1 張</b> 省配額（10 行剛好打滿今日 5 次配額 × 2 倍效率），
+        或選 <b>2 張</b> 拿變體。
+      </p>
+
+      <div class="batch-step">
+        <span class="step-num">1.</span>
+        <label>上傳 CSV：<input type="file" id="batch-csv" accept=".csv,.txt"></label>
+        <a id="batch-sample-link" class="batch-sample-link" href="#" download="sample.csv">↓ 下載範例 CSV</a>
+      </div>
+
+      <div class="batch-step">
+        <span class="step-num">2.</span>
+        <label>每行幾張：
+          <select id="batch-n">
+            <option value="1" selected>1 張 / 行（省配額）</option>
+            <option value="2">2 張 / 行（拿變體）</option>
+          </select>
+        </label>
+      </div>
+
+      <div id="batch-preview" style="display:none"></div>
+      <div id="batch-warn" class="batch-preview-warn" style="display:none"></div>
+
+      <div class="batch-actions">
+        <button id="batch-run" class="btn-print" type="button" disabled>🚀 開始批次生成</button>
+      </div>
+
+      <div id="batch-progress" style="display:none">
+        <div class="batch-bar"><div id="batch-bar-fill" class="batch-bar-fill"></div></div>
+        <div id="batch-status-text" class="batch-status">準備中…</div>
+      </div>
+
+      <div id="batch-results" class="batch-results" style="display:none"></div>
+    </div>
+  </div>
 
   <!-- =====================================================
        列印專用區（screen 完全隱藏 / @media print 才顯示）

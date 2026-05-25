@@ -1111,6 +1111,135 @@ body::before{
 }
 .tweaks-reset:hover{color:var(--chalk-red);border-color:var(--chalk-red)}
 
+/* =========================================================
+   批次模式 Modal — CSV 一次生 N 組
+   ========================================================= */
+.btn-batch{
+  font-family:var(--font-mono);font-size:10px;letter-spacing:.12em;
+  text-transform:uppercase;padding:5px 11px;
+  background:transparent;color:var(--chalk-soft);
+  border:1px dashed rgba(207,202,176,.4);border-radius:2px;
+  cursor:pointer;transition:all .12s;line-height:1;
+}
+.btn-batch:hover{
+  color:var(--chalk-pink);border-color:var(--chalk-pink);
+  background:rgba(232,163,180,.06);
+}
+
+.batch-modal{
+  position:fixed;inset:0;background:rgba(10,8,6,.92);z-index:60;
+  display:none;padding:24px;overflow-y:auto;
+  backdrop-filter:blur(8px);
+}
+.batch-modal.open{display:flex;flex-direction:column;align-items:center}
+.batch-card{
+  max-width:720px;width:100%;background:var(--paper);border-radius:4px;
+  padding:24px 28px 24px;display:flex;flex-direction:column;gap:14px;
+  position:relative;margin:auto 0;flex-shrink:0;
+  box-shadow:0 40px 80px -20px rgba(0,0,0,.6);
+  color:var(--paper-ink);
+}
+.batch-card h3{
+  font-family:var(--font-serif);font-weight:900;font-size:22px;margin:0;
+  letter-spacing:-.01em;
+}
+.batch-card .batch-intro{
+  font-size:13px;color:var(--paper-muted);margin:0 0 4px;line-height:1.5;
+}
+.batch-card .batch-close{
+  position:absolute;top:-14px;right:-14px;width:36px;height:36px;border-radius:50%;
+  background:var(--paper-ink);color:var(--paper);border:none;font-size:18px;cursor:pointer;
+  display:grid;place-items:center;
+}
+
+.batch-step{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:12px 14px;background:rgba(31,28,20,.04);
+  border:1px dashed var(--paper-line);border-radius:3px;
+  font-size:13px;
+}
+.batch-step .step-num{
+  font-family:var(--font-mono);font-size:10px;letter-spacing:.14em;
+  color:var(--paper-muted);text-transform:uppercase;
+}
+.batch-step input[type="file"]{font-size:12px;font-family:var(--font-mono)}
+.batch-step select{
+  padding:6px 24px 6px 10px;border:1px solid var(--paper-line);
+  border-radius:2px;background:#fff;font-family:var(--font-mono);font-size:11px;
+  letter-spacing:.06em;color:var(--paper-ink);outline:none;cursor:pointer;
+  appearance:none;-webkit-appearance:none;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'><path d='M2 4L5 7L8 4' stroke='%231f1c14' stroke-width='1.5' fill='none'/></svg>");
+  background-repeat:no-repeat;background-position:right 8px center;
+}
+.batch-sample-link{
+  font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;
+  color:var(--paper-ink);text-decoration:none;
+  border-bottom:1px dashed var(--paper-ink);
+}
+.batch-sample-link:hover{color:#000}
+
+.batch-preview{
+  max-height:200px;overflow-y:auto;
+  border:1px solid var(--paper-line);border-radius:3px;
+  font-family:var(--font-mono);font-size:11px;
+}
+.batch-preview-row{
+  display:grid;grid-template-columns:24px 1fr 1.6fr 1fr 1fr;gap:8px;
+  padding:6px 10px;border-bottom:1px solid var(--paper-line);
+  align-items:center;
+}
+.batch-preview-row:last-child{border-bottom:none}
+.batch-preview-row.head{
+  background:rgba(31,28,20,.08);font-weight:700;
+  font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--paper-muted);
+}
+.batch-preview-row .cell{
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11.5px;
+}
+.batch-preview-row .cell.empty{color:rgba(31,28,20,.3);font-style:italic}
+.batch-preview-warn{
+  background:#fef3c7;color:#92400e;padding:8px 12px;border-radius:3px;
+  font-size:12px;border:1px solid #fde68a;
+}
+
+.batch-bar{
+  width:100%;height:8px;background:var(--paper-line);border-radius:4px;
+  overflow:hidden;
+}
+.batch-bar-fill{
+  height:100%;background:var(--paper-ink);width:0;transition:width .3s;
+}
+.batch-status{
+  font-family:var(--font-mono);font-size:11px;color:var(--paper-muted);
+  text-align:center;letter-spacing:.08em;text-transform:uppercase;
+}
+
+.batch-results{display:flex;flex-direction:column;gap:6px;max-height:300px;overflow-y:auto}
+.batch-result-row{
+  display:grid;grid-template-columns:auto 1fr auto;gap:10px;
+  padding:8px 12px;background:rgba(31,28,20,.03);border-radius:3px;
+  align-items:center;font-size:12px;
+}
+.batch-result-row .status-ok{color:#059669;font-family:var(--font-serif);font-weight:900}
+.batch-result-row .status-fail{color:var(--chalk-red);font-family:var(--font-serif);font-weight:900}
+.batch-result-row .label{font-family:var(--font-serif);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.batch-result-row .dl-group{display:flex;gap:4px}
+.batch-result-row .dl{
+  background:var(--paper-ink);color:var(--paper);padding:3px 9px;border-radius:1px;
+  font-family:var(--font-mono);font-size:9.5px;letter-spacing:.1em;cursor:pointer;
+  text-decoration:none;
+}
+.batch-result-row .dl:hover{background:#000}
+.batch-result-row .err-msg{
+  color:var(--chalk-red);font-size:11px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+
+.batch-actions{
+  display:flex;gap:10px;justify-content:flex-end;
+  padding-top:8px;border-top:1px dashed var(--paper-line);
+}
+
 /* Toast — 生成成功小提示，bottom 90px 避免跟 SW 更新 banner（bottom 20px）打架 */
 .toast{
   position:fixed;bottom:90px;left:50%;transform:translateX(-50%);

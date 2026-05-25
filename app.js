@@ -426,11 +426,12 @@
     return STYLE_PRESETS.find((p) => p.id === _selectedStyle) || STYLE_PRESETS[0];
   }
 
-  function buildPrompt() {
-    const title = fTitle.value.trim();
-    const character = fChar.value.trim();
-    const dialogue = fDlg.value.trim();
-    const background = fBg.value.trim();
+  // 主 prompt 合成：給單筆生成 / 批次生成共用
+  function buildPromptFromFields(f) {
+    const title = (f.title || '').trim();
+    const character = (f.character || '').trim();
+    const dialogue = (f.dialogue || '').trim();
+    const background = (f.background || '').trim();
 
     const preset = getStylePreset();
     const lines = [preset.lead];
@@ -459,6 +460,16 @@
     lines.push(preset.style);
     if (cjkTexts.length) lines.push('Render any Chinese / CJK text crisply and accurately as provided, using standard Traditional Chinese typography.');
     return lines.join('\n');
+  }
+
+  // 從表單欄位讀值（單筆生成路徑用）
+  function buildPrompt() {
+    return buildPromptFromFields({
+      title: fTitle.value,
+      character: fChar.value,
+      dialogue: fDlg.value,
+      background: fBg.value,
+    });
   }
 
   function refreshPrompt() {
@@ -1134,6 +1145,232 @@
   applyTweaks(getTweaks());
   renderTweaksPanel();
 
+  // ===== Batch Mode (CSV) =====
+  // 簡易 CSV parser，支援引號包欄位 + 引號跳脫 ""
+  function parseCSV(text) {
+    text = String(text || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
+    if (!text) return { rows: [], header: [] };
+    const out = [];
+    let cur = '', inQ = false, row = [];
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      if (ch === '"' && text[i + 1] === '"') { cur += '"'; i++; }
+      else if (ch === '"') { inQ = !inQ; }
+      else if (ch === ',' && !inQ) { row.push(cur); cur = ''; }
+      else if (ch === '\n' && !inQ) { row.push(cur); out.push(row); row = []; cur = ''; }
+      else { cur += ch; }
+    }
+    if (cur || row.length) { row.push(cur); out.push(row); }
+
+    if (!out.length) return { rows: [], header: [] };
+    // 第一列當 header（小寫化方便比對）
+    const header = out[0].map((h) => String(h || '').trim().toLowerCase());
+    const rows = out.slice(1)
+      .filter((r) => r.some((c) => String(c).trim()))   // 跳過空白行
+      .map((r) => {
+        const obj = {};
+        header.forEach((h, i) => { obj[h] = String(r[i] || '').trim(); });
+        return obj;
+      });
+    return { rows, header };
+  }
+
+  function batchSampleCSV() {
+    return 'title,character,dialogue,background\n' +
+      '五年級英文 Unit 1,A student running on the playground,Run!,playground with trees in background\n' +
+      '五年級英文 Unit 2,A small dog sleeping on the sofa,Zzz...,living room with a window\n' +
+      '數學課,一個小女生畫圓,圓心,黑板上有圓規與數學符號\n' +
+      'Farm Animal,小豬跟米格魯小狗並排站著,Hello!,農場 遠處有風車\n' +
+      '中秋節,一家三口圍著月餅,好圓,夜晚有大圓月\n';
+  }
+
+  let _batchRows = [];   // 解析後的 row list
+  let _batchN = 1;       // 每行幾張
+  let _batchRunning = false;
+
+  function openBatch() {
+    $('batch-modal').classList.add('open');
+    document.body.style.overflow = 'hidden';
+    resetBatchUI();
+  }
+  function closeBatch() {
+    if (_batchRunning && !confirm('批次正在跑，確定要關閉嗎？已生的不會消失')) return;
+    $('batch-modal').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+  function resetBatchUI() {
+    $('batch-csv').value = '';
+    $('batch-preview').style.display = 'none';
+    $('batch-warn').style.display = 'none';
+    $('batch-progress').style.display = 'none';
+    $('batch-results').style.display = 'none';
+    $('batch-run').disabled = true;
+    _batchRows = [];
+  }
+
+  function renderBatchPreview() {
+    const wrap = $('batch-preview');
+    if (!_batchRows.length) { wrap.style.display = 'none'; return; }
+    wrap.style.display = '';
+    wrap.innerHTML = '';
+    const esc = (s) => String(s || '').replace(/[<>&"']/g, (c) => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]));
+
+    const head = document.createElement('div');
+    head.className = 'batch-preview-row head';
+    head.innerHTML = '<span class="cell">#</span><span class="cell">標題</span><span class="cell">角色</span><span class="cell">對話</span><span class="cell">背景</span>';
+    wrap.appendChild(head);
+
+    _batchRows.slice(0, 12).forEach((r, i) => {
+      const div = document.createElement('div');
+      div.className = 'batch-preview-row';
+      const c = (v) => v ? `<span class="cell">${esc(v)}</span>` : '<span class="cell empty">—</span>';
+      div.innerHTML = `<span class="cell">${i + 1}</span>${c(r.title)}${c(r.character)}${c(r.dialogue)}${c(r.background)}`;
+      wrap.appendChild(div);
+    });
+    if (_batchRows.length > 12) {
+      const more = document.createElement('div');
+      more.className = 'batch-preview-row';
+      more.innerHTML = `<span class="cell">…</span><span class="cell empty" style="grid-column:span 4">還有 ${_batchRows.length - 12} 行未顯示</span>`;
+      wrap.appendChild(more);
+    }
+  }
+
+  function checkBatchQuota() {
+    const remain = Math.max(0, DAILY_QUOTA - getQuotaUsed());
+    const need = _batchRows.length;
+    const warn = $('batch-warn');
+    if (need > remain) {
+      warn.style.display = '';
+      warn.innerHTML = `⚠ 今日剩 <b>${remain} 次配額</b>，CSV 有 <b>${need} 行</b> → 只能跑前 <b>${remain}</b> 行，超出的會被後端 429 擋下。`;
+    } else {
+      warn.style.display = '';
+      warn.innerHTML = `✓ 今日剩 ${remain} 次配額，足夠跑完 ${need} 行。`;
+      warn.style.background = '#d1fae5';
+      warn.style.color = '#065f46';
+      warn.style.borderColor = '#a7f3d0';
+    }
+  }
+
+  function setBatchProgress(pct, text) {
+    $('batch-progress').style.display = '';
+    $('batch-bar-fill').style.width = pct + '%';
+    $('batch-status-text').textContent = text;
+  }
+
+  function appendBatchResult(item) {
+    const wrap = $('batch-results');
+    wrap.style.display = '';
+    const row = document.createElement('div');
+    row.className = 'batch-result-row';
+    const esc = (s) => String(s || '').replace(/[<>&"']/g, (c) => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]));
+    const label = item.fields.title || item.fields.character?.slice(0, 20) || '無標題';
+    const slug = slugifyForFilename(item.fields.title || item.fields.character || `batch-${item.row}`);
+    if (item.status === 'ok') {
+      const dls = item.images.map((src, i) =>
+        `<a href="${src}" download="${slug}-${item.row}-${i + 1}.png" class="dl">↓ 圖${i + 1}</a>`
+      ).join('');
+      row.innerHTML = `<span class="status-ok">✓</span>
+                      <span class="label">#${item.row} · ${esc(label)}</span>
+                      <span class="dl-group">${dls}</span>`;
+    } else {
+      row.innerHTML = `<span class="status-fail">✗</span>
+                      <span class="label">#${item.row} · ${esc(label)}</span>
+                      <span class="err-msg">${esc(item.error || '失敗')}</span>`;
+    }
+    wrap.appendChild(row);
+  }
+
+  async function runBatch() {
+    if (_batchRunning) return;
+    if (!_batchRows.length) return;
+    // 過濾掉沒 character 的行
+    const valid = _batchRows.filter((r) => r.character && r.character.trim());
+    if (valid.length < _batchRows.length) {
+      showToast(`已跳過 ${_batchRows.length - valid.length} 行（無 character）`, 2000);
+    }
+    if (!valid.length) {
+      showError('CSV 沒有任何有效行（每行至少要有 character 欄）');
+      return;
+    }
+
+    _batchRunning = true;
+    $('batch-run').disabled = true;
+    $('batch-results').innerHTML = '';
+    setBatchProgress(0, `準備生 ${valid.length} 行 · 每行 ${_batchN} 張…`);
+
+    let okCount = 0, failCount = 0;
+    for (let i = 0; i < valid.length; i++) {
+      const fields = valid[i];
+      const rowNum = i + 1;
+      setBatchProgress((i / valid.length) * 100, `第 ${rowNum} / ${valid.length} 行 · ${okCount} OK / ${failCount} 失敗`);
+      try {
+        const prompt = buildPromptFromFields(fields);
+        const token = await waitForTurnstileToken();
+        const images = await callBackend(prompt, fields, token, _batchN);
+        appendBatchResult({ row: rowNum, status: 'ok', images, fields });
+        incQuota(); refreshQuotaUI();
+        resetTurnstile();
+        okCount++;
+        // 寫入 history 紀錄
+        addToHistory(images, fields).catch(() => {});
+      } catch (e) {
+        appendBatchResult({ row: rowNum, status: 'failed', error: e.message, fields });
+        failCount++;
+        resetTurnstile();
+        // 後端 429 → 後面再跑也是 429，提早結束省時間
+        if (/配額已用滿|429/.test(e.message)) {
+          appendBatchResult({ row: '!', status: 'failed', error: `配額已滿，後面 ${valid.length - rowNum} 行跳過`, fields: {} });
+          break;
+        }
+      }
+    }
+
+    setBatchProgress(100, `完成 · ${okCount} OK / ${failCount} 失敗`);
+    showToast(`批次完成：${okCount} 成功 / ${failCount} 失敗`, 3000);
+    _batchRunning = false;
+    $('batch-run').disabled = false;
+  }
+
+  // 事件綁定
+  $('btn-batch-mode').addEventListener('click', openBatch);
+  $('batch-close').addEventListener('click', closeBatch);
+  $('batch-modal').addEventListener('click', (e) => { if (e.target === $('batch-modal')) closeBatch(); });
+
+  $('batch-csv').addEventListener('change', async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const { rows, header } = parseCSV(text);
+      // 至少要有 character 欄
+      if (!header.includes('character')) {
+        showError(`CSV 必須有 character 欄。當前 header: ${header.join(', ') || '(空)'}`);
+        return;
+      }
+      _batchRows = rows;
+      renderBatchPreview();
+      checkBatchQuota();
+      $('batch-run').disabled = !rows.length;
+      hideError();
+    } catch (err) {
+      showError('讀 CSV 失敗：' + err.message);
+    }
+  });
+
+  $('batch-n').addEventListener('change', (e) => {
+    _batchN = e.target.value === '2' ? 2 : 1;
+  });
+
+  $('batch-run').addEventListener('click', runBatch);
+
+  // 範例 CSV 下載連結（用 data URI，加 BOM 讓 Excel 開不亂碼）
+  (() => {
+    const link = $('batch-sample-link');
+    if (!link) return;
+    const csv = '﻿' + batchSampleCSV();   // UTF-8 BOM
+    link.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  })();
+
   // ===== Keyboard Shortcuts =====
   // Ctrl/Cmd+Enter 任何欄位 → 生成
   // 1-6 → 切分類 tab（不在輸入框時）
@@ -1403,10 +1640,13 @@
   }
 
   // ===== Backend Call =====
-  async function callBackend(prompt, fields, turnstileToken) {
+  async function callBackend(prompt, fields, turnstileToken, n) {
+    // n: 1 或 2（批次模式用 1 省配額）
+    const imagesN = (n === 1 || n === 2) ? n : 2;
     if (IS_LOCAL) {
       await new Promise((r) => setTimeout(r, 1500));
-      return [makeMockSVG(prompt, 1), makeMockSVG(prompt, 2)];
+      const mocks = [makeMockSVG(prompt, 1), makeMockSVG(prompt, 2)];
+      return mocks.slice(0, imagesN);
     }
 
     const backendUrl = CFG.BACKEND_URL;
@@ -1415,7 +1655,7 @@
     const res = await fetch(backendUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ data: { prompt, fields, turnstileToken } }),
+      body: JSON.stringify({ data: { prompt, fields, turnstileToken, n: imagesN } }),
     });
 
     let json;

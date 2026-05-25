@@ -204,6 +204,10 @@ exports.generateImage = onRequest(
     const payload = req.body?.data || req.body || {};
     const { prompt, turnstileToken, fields = {} } = payload;
     const { title = '', character = '', dialogue = '', background = '' } = fields;
+    // n: 每次生幾張（1 或 2）。批次模式用 1 省配額（每行 1 圖而非 2 圖），
+    // 一般模式維持預設 2（每 prompt 提供 2 個變體讓老師挑）
+    const reqN = Number(payload.n);
+    const imagesPerCall = (reqN === 1 || reqN === 2) ? reqN : IMAGES_PER_CALL;
 
     // Snapshot for LINE cards (truncated for readability)
     const trim = (s, n) => (s || '').toString().substring(0, n);
@@ -297,7 +301,7 @@ exports.generateImage = onRequest(
         const result = await openai.images.generate({
           model: IMAGE_MODEL,
           prompt,
-          n: IMAGES_PER_CALL,
+          n: imagesPerCall,
           size: IMAGE_SIZE,
           quality: IMAGE_QUALITY,
           output_format: 'png',
