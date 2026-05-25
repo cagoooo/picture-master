@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>試卷生圖 · Admin Dashboard</title>
+  <meta name="theme-color" content="#2b3a35">
+  <meta name="robots" content="noindex,nofollow">
+
+  <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+  <link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Noto+Serif+TC:wght@700;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+  <style>
+    *,*::before,*::after{box-sizing:border-box}
+    html,body{margin:0;padding:0}
+    :root{
+      --ink:#1a1714; --bg:#2d2922; --board:#2b3a35; --board-deep:#1f2a26;
+      --chalk-white:#f0ebd8; --chalk-soft:#cfcab0; --chalk-yellow:#f6c560;
+      --chalk-red:#e07c5e; --chalk-green:#9ce7a9; --chalk-blue:#9cc4d8;
+      --paper:#fff; --paper-ink:#1f1c14; --paper-line:#d8cfb8; --paper-muted:#7a7466;
+      --font-ui:"Noto Sans TC",system-ui,sans-serif;
+      --font-serif:"Noto Serif TC",Georgia,serif;
+      --font-mono:"JetBrains Mono",ui-monospace,monospace;
+    }
+    body{
+      font-family:var(--font-ui);background:var(--bg);color:var(--chalk-white);
+      min-height:100vh;padding:24px;
+    }
+    .wrap{max-width:1200px;margin:0 auto}
+
+    /* Top nav */
+    .topnav{
+      display:flex;justify-content:space-between;align-items:center;
+      margin-bottom:28px;padding-bottom:18px;
+      border-bottom:1px dashed rgba(207,202,176,.18);
+    }
+    .topnav .back{
+      display:inline-flex;align-items:center;gap:8px;
+      background:transparent;color:var(--chalk-yellow);
+      border:1.5px solid var(--chalk-yellow);
+      padding:8px 14px;border-radius:3px;text-decoration:none;
+      font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;
+      text-transform:uppercase;font-weight:700;
+      transition:all .15s;
+    }
+    .topnav .back:hover{background:var(--chalk-yellow);color:var(--ink)}
+    .topnav h1{
+      font-family:var(--font-serif);font-weight:900;font-size:22px;margin:0;
+      color:var(--chalk-yellow);letter-spacing:.02em;
+    }
+    .topnav h1 .sub{
+      font-family:var(--font-mono);font-size:11px;letter-spacing:.18em;
+      color:var(--chalk-soft);text-transform:uppercase;margin-left:8px;font-weight:500;
+    }
+
+    .auth-area{display:flex;align-items:center;gap:10px}
+    .auth-area .name{font-family:var(--font-mono);font-size:11px;color:var(--chalk-soft);letter-spacing:.06em}
+    .auth-area button{
+      background:transparent;color:var(--chalk-soft);
+      border:1px solid rgba(207,202,176,.3);padding:5px 12px;border-radius:2px;
+      font-family:var(--font-mono);font-size:10px;letter-spacing:.12em;
+      text-transform:uppercase;cursor:pointer;
+    }
+    .auth-area button:hover{color:var(--chalk-yellow);border-color:var(--chalk-yellow)}
+
+    /* Login gate */
+    .gate{
+      max-width:480px;margin:80px auto;
+      background:var(--board);border:1px solid rgba(207,202,176,.15);
+      padding:36px;border-radius:4px;text-align:center;
+    }
+    .gate h2{
+      font-family:var(--font-serif);font-weight:900;font-size:24px;margin:0 0 8px;
+      color:var(--chalk-yellow);
+    }
+    .gate p{color:var(--chalk-soft);font-size:14px;line-height:1.6;margin:8px 0 22px}
+    .gate .btn-google{
+      background:var(--chalk-yellow);color:var(--ink);border:none;
+      padding:12px 24px;border-radius:3px;cursor:pointer;
+      font-family:var(--font-ui);font-weight:900;font-size:14px;letter-spacing:.04em;
+    }
+    .gate .btn-google:hover{background:#fdd06b}
+    .gate .err{color:var(--chalk-red);font-family:var(--font-mono);font-size:12px;margin-top:16px}
+
+    /* Stats grid */
+    .stats{
+      display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));
+      gap:14px;margin-bottom:28px;
+    }
+    .stat-card{
+      background:var(--board);border:1px solid rgba(207,202,176,.12);
+      padding:18px 20px;border-radius:3px;
+    }
+    .stat-card .k{
+      font-family:var(--font-mono);font-size:10px;letter-spacing:.14em;
+      color:var(--chalk-soft);text-transform:uppercase;margin-bottom:6px;
+    }
+    .stat-card .v{
+      font-family:var(--font-serif);font-weight:900;font-size:32px;
+      color:var(--chalk-white);line-height:1;
+    }
+    .stat-card .v.warn{color:var(--chalk-red)}
+    .stat-card .v.ok{color:var(--chalk-green)}
+    .stat-card .extra{
+      font-family:var(--font-mono);font-size:10px;letter-spacing:.06em;
+      color:var(--chalk-soft);margin-top:6px;
+    }
+
+    /* Chart */
+    .chart-card{
+      background:var(--board);border:1px solid rgba(207,202,176,.12);
+      padding:20px;border-radius:3px;margin-bottom:28px;
+    }
+    .chart-card h3{
+      font-family:var(--font-serif);font-weight:700;font-size:15px;margin:0 0 14px;
+      color:var(--chalk-yellow);
+    }
+    .chart-wrap{position:relative;height:200px}
+    .chart-wrap svg{width:100%;height:100%;display:block}
+
+    /* Table */
+    .table-card{
+      background:var(--board);border:1px solid rgba(207,202,176,.12);
+      padding:20px;border-radius:3px;
+    }
+    .table-card h3{
+      font-family:var(--font-serif);font-weight:700;font-size:15px;margin:0 0 14px;
+      color:var(--chalk-yellow);
+    }
+    .gen-table{
+      width:100%;border-collapse:collapse;font-family:var(--font-mono);font-size:11px;
+    }
+    .gen-table th,.gen-table td{
+      text-align:left;padding:7px 9px;border-bottom:1px dashed rgba(207,202,176,.1);
+    }
+    .gen-table th{
+      color:var(--chalk-soft);letter-spacing:.1em;text-transform:uppercase;
+      font-weight:500;font-size:9.5px;
+    }
+    .gen-table td{color:var(--chalk-white)}
+    .gen-table .status-ok{color:var(--chalk-green);font-weight:700}
+    .gen-table .status-fail{color:var(--chalk-red);font-weight:700}
+    .gen-table .uid-cell{font-size:10px;color:var(--chalk-soft);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+    .loading{text-align:center;padding:40px;color:var(--chalk-soft);font-family:var(--font-mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase}
+
+    /* Bootstrap config — share with main app */
+    /* No __PM_CONFIG here; we re-declare it inline for standalone page */
+  </style>
+
+  <script>
+    // 同步維護：跟 ../index.html 的 __PM_CONFIG.FIREBASE / ADMIN_EMAILS 一致
+    window.__PM_CONFIG = {
+      FIREBASE: {
+        apiKey: 'AIzaSyC8-x077Cj1ncOBaaY0xRP0X_ck-fJahYs',
+        authDomain: 'picture-master.firebaseapp.com',
+        projectId: 'picture-master',
+        appId: '1:1008956610373:web:cbf415f7685e450b9fd02c',
+      },
+      ADMIN_EMAILS: [
+        'ipad@mail2.smes.tyc.edu.tw',
+        'cagooo@gmail.com',
+      ],
+    };
+  </script>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topnav">
+      <a class="back" href="../" title="回主頁">← 回主頁</a>
+      <h1>📊 試卷生圖 <span class="sub">/ ADMIN DASHBOARD</span></h1>
+      <div id="auth-area" class="auth-area"></div>
+    </div>
+
+    <!-- Login gate -->
+    <div id="gate" class="gate" style="display:none">
+      <h2>🔐 需要管理員登入</h2>
+      <p>這是阿凱老師的後台 dashboard。<br>請用管理員帳號 Google 登入後查看。</p>
+      <button id="btn-google-login" class="btn-google">🔓 Google 登入</button>
+      <div id="login-err" class="err"></div>
+    </div>
+
+    <!-- Dashboard -->
+    <div id="dashboard" style="display:none">
+      <div class="stats">
+        <div class="stat-card">
+          <div class="k">今日用量</div>
+          <div id="stat-today" class="v">—</div>
+          <div class="extra"><span id="stat-today-img">0</span> 圖 · 平均 <span id="stat-today-avg">—</span>s</div>
+        </div>
+        <div class="stat-card">
+          <div class="k">本月用量</div>
+          <div id="stat-month" class="v">—</div>
+          <div class="extra"><span id="stat-month-img">0</span> 圖</div>
+        </div>
+        <div class="stat-card">
+          <div class="k">失敗率（近 7 日）</div>
+          <div id="stat-failrate" class="v">—</div>
+          <div class="extra"><span id="stat-failcount">0</span> 失敗 / <span id="stat-totalcount">0</span> 總共</div>
+        </div>
+        <div class="stat-card">
+          <div class="k">活躍用戶（近 7 日）</div>
+          <div id="stat-users" class="v">—</div>
+          <div class="extra">unique uid + ipHash</div>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <h3>📈 過去 7 日成功 vs 失敗</h3>
+        <div class="chart-wrap"><svg id="chart-7day" viewBox="0 0 600 200" preserveAspectRatio="none"></svg></div>
+      </div>
+
+      <div class="table-card">
+        <h3>📋 最近 30 筆 generations</h3>
+        <table class="gen-table">
+          <thead>
+            <tr><th>時間</th><th>用戶</th><th>狀態</th><th>模型</th><th>圖</th><th>耗時</th><th>備註</th></tr>
+          </thead>
+          <tbody id="gen-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="loading" class="loading">載入中…</div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js';
+    import {
+      getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
+    } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js';
+    import {
+      getFirestore, collection, query, where, orderBy, limit, getDocs
+    } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js';
+
+    const cfg = window.__PM_CONFIG;
+    const app = initializeApp(cfg.FIREBASE);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const provider = new GoogleAuthProvider();
+
+    const $ = (id) => document.getElementById(id);
+    const ADMIN_EMAILS = cfg.ADMIN_EMAILS;
+
+    function isAdmin(user) {
+      return user && user.email && ADMIN_EMAILS.includes(user.email);
+    }
+
+    function renderAuthArea(user) {
+      const wrap = $('auth-area');
+      if (!user) { wrap.innerHTML = ''; return; }
+      wrap.innerHTML = `<span class="name">${user.email || ''}</span>
+                       <button id="btn-logout">登出</button>`;
+      $('btn-logout').addEventListener('click', () => signOut(auth));
+    }
+
+    $('btn-google-login').addEventListener('click', async () => {
+      try {
+        await signInWithPopup(auth, provider);
+      } catch (e) {
+        $('login-err').textContent = '登入失敗：' + (e?.message || e);
+      }
+    });
+
+    onAuthStateChanged(auth, async (user) => {
+      $('loading').style.display = 'none';
+      renderAuthArea(user);
+      if (!user) {
+        $('gate').style.display = '';
+        $('dashboard').style.display = 'none';
+        return;
+      }
+      if (!isAdmin(user)) {
+        $('gate').style.display = '';
+        $('dashboard').style.display = 'none';
+        $('gate').innerHTML = `
+          <h2>⛔ 你不是管理員</h2>
+          <p>帳號 <code>${user.email}</code> 沒有後台權限。</p>
+          <button onclick="firebase_logout()" class="btn-google">換帳號登入</button>
+        `;
+        window.firebase_logout = () => signOut(auth);
+        return;
+      }
+      $('gate').style.display = 'none';
+      $('dashboard').style.display = '';
+      await loadDashboard();
+    });
+
+    async function loadDashboard() {
+      $('loading').style.display = '';
+      try {
+        // 取近 30 天所有 generations，前端做聚合
+        const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+        const cutoffDate = new Date(cutoff);
+        const q = query(
+          collection(db, 'generations'),
+          orderBy('ts', 'desc'),
+          limit(500)
+        );
+        const snap = await getDocs(q);
+        const all = [];
+        snap.forEach((doc) => {
+          const d = doc.data();
+          const ts = d.ts?.toDate?.() || new Date(0);
+          if (ts >= cutoffDate) all.push({ ...d, _ts: ts });
+        });
+
+        renderStats(all);
+        render7DayChart(all);
+        renderTable(all.slice(0, 30));
+      } catch (e) {
+        console.error(e);
+        $('dashboard').innerHTML = `<div class="loading">❌ 讀取失敗：${e.message}</div>`;
+      } finally {
+        $('loading').style.display = 'none';
+      }
+    }
+
+    function renderStats(all) {
+      const today = new Date().toISOString().slice(0, 10);
+      const thisMonth = today.slice(0, 7);
+      const week = Date.now() - 7 * 24 * 60 * 60 * 1000;
+
+      const todayLogs = all.filter((x) => x.dayKey === today);
+      const monthLogs = all.filter((x) => x.dayKey?.startsWith(thisMonth));
+      const weekLogs = all.filter((x) => x._ts.getTime() >= week);
+      const weekFail = weekLogs.filter((x) => x.status === 'failed').length;
+
+      $('stat-today').textContent = todayLogs.length;
+      $('stat-today-img').textContent = todayLogs.reduce((s, x) => s + (x.imageCount || 0), 0);
+      const okToday = todayLogs.filter((x) => x.elapsedMs);
+      const avgMs = okToday.length ? okToday.reduce((s, x) => s + x.elapsedMs, 0) / okToday.length : 0;
+      $('stat-today-avg').textContent = avgMs ? (avgMs / 1000).toFixed(1) : '—';
+
+      $('stat-month').textContent = monthLogs.length;
+      $('stat-month-img').textContent = monthLogs.reduce((s, x) => s + (x.imageCount || 0), 0);
+
+      const rate = weekLogs.length ? (weekFail / weekLogs.length * 100) : 0;
+      const rateEl = $('stat-failrate');
+      rateEl.textContent = rate.toFixed(1) + '%';
+      rateEl.className = 'v ' + (rate > 10 ? 'warn' : 'ok');
+      $('stat-failcount').textContent = weekFail;
+      $('stat-totalcount').textContent = weekLogs.length;
+
+      const uniqueIds = new Set(weekLogs.map((x) => x.uid || x.ipHash));
+      $('stat-users').textContent = uniqueIds.size;
+    }
+
+    function render7DayChart(all) {
+      const svg = $('chart-7day');
+      svg.innerHTML = '';
+      const days = [];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const dayKey = d.toISOString().slice(0, 10);
+        const dayLogs = all.filter((x) => x.dayKey === dayKey);
+        days.push({
+          dayKey,
+          label: `${d.getMonth() + 1}/${d.getDate()}`,
+          ok: dayLogs.filter((x) => x.status === 'success').length,
+          fail: dayLogs.filter((x) => x.status === 'failed').length,
+        });
+      }
+      const maxV = Math.max(1, ...days.map((d) => d.ok + d.fail));
+      const W = 600, H = 200, padL = 30, padR = 10, padT = 14, padB = 24;
+      const colW = (W - padL - padR) / days.length;
+
+      // grid lines
+      for (let i = 0; i <= 4; i++) {
+        const y = padT + ((H - padT - padB) * i / 4);
+        const v = Math.round(maxV * (1 - i / 4));
+        svg.insertAdjacentHTML('beforeend',
+          `<line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="rgba(207,202,176,.1)" stroke-width="0.5"/>
+           <text x="${padL - 4}" y="${y + 3}" fill="#cfcab0" font-size="9" text-anchor="end" font-family="JetBrains Mono">${v}</text>`);
+      }
+
+      days.forEach((d, i) => {
+        const x = padL + i * colW + colW * 0.18;
+        const barW = colW * 0.64;
+        const okH = (d.ok / maxV) * (H - padT - padB);
+        const failH = (d.fail / maxV) * (H - padT - padB);
+        // success bar (bottom)
+        svg.insertAdjacentHTML('beforeend',
+          `<rect x="${x}" y="${H - padB - okH}" width="${barW}" height="${okH}" fill="#9ce7a9"/>
+           <rect x="${x}" y="${H - padB - okH - failH}" width="${barW}" height="${failH}" fill="#e07c5e"/>
+           <text x="${x + barW / 2}" y="${H - padB + 13}" fill="#cfcab0" font-size="9" text-anchor="middle" font-family="JetBrains Mono">${d.label}</text>`);
+        if (d.ok + d.fail > 0) {
+          svg.insertAdjacentHTML('beforeend',
+            `<text x="${x + barW / 2}" y="${H - padB - okH - failH - 3}" fill="#f0ebd8" font-size="9" text-anchor="middle" font-family="JetBrains Mono" font-weight="700">${d.ok + d.fail}</text>`);
+        }
+      });
+    }
+
+    function renderTable(rows) {
+      const tbody = $('gen-tbody');
+      tbody.innerHTML = '';
+      if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#cfcab0;padding:20px">尚無紀錄</td></tr>';
+        return;
+      }
+      const esc = (s) => String(s ?? '—').replace(/[<>&"']/g, (c) => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]));
+      rows.forEach((r) => {
+        const time = r._ts.toLocaleString('zh-TW', { hour12: false, month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+        const user = r.email ? esc(r.email) : `<span style="color:#7a7466">ip:${esc(r.ipHash?.slice(0, 8))}</span>`;
+        const statusClass = r.status === 'success' ? 'status-ok' : 'status-fail';
+        const statusText = r.status === 'success' ? '✓' : '✗';
+        const elapsed = r.elapsedMs ? (r.elapsedMs / 1000).toFixed(1) + 's' : '—';
+        const note = r.status === 'failed'
+          ? `<span style="color:#e07c5e">${esc(r.errMsg?.slice(0, 40))}</span>`
+          : `<span style="color:#7a7466">${r.charLen || 0}字 ${r.hasCJK ? '中' : 'en'}</span>`;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${time}</td>
+                        <td class="uid-cell" title="${esc(r.email || r.ipHash || '')}">${user}</td>
+                        <td class="${statusClass}">${statusText}</td>
+                        <td>${esc(r.model || '—')}</td>
+                        <td>${r.imageCount || (r.errStatus || '')}</td>
+                        <td>${elapsed}</td>
+                        <td>${note}</td>`;
+        tbody.appendChild(tr);
+      });
+    }
+  </script>
+</body>
+</html>

@@ -1371,6 +1371,55 @@
     link.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
   })();
 
+  // ===== Firebase Auth UI =====
+  // window.firebaseAuth 由 index.html 末段的 module script 注入
+  // 監聽 auth state 變化 → 切換 statusbar 的 login button / user info
+  function bindFirebaseAuth() {
+    const fa = window.firebaseAuth;
+    if (!fa) return;
+
+    const btnLogin = $('btn-login');
+    const btnLogout = $('btn-logout');
+    const userInfoEl = $('user-info');
+    const userAvatar = $('user-avatar');
+    const userName = $('user-name');
+
+    fa.onChange((user) => {
+      if (user) {
+        btnLogin.style.display = 'none';
+        userInfoEl.style.display = '';
+        userAvatar.src = user.photoURL || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23cfcab0"><circle cx="12" cy="8" r="4"/><path d="M4 22 Q12 14 20 22"/></svg>';
+        userName.textContent = user.displayName || user.email || '已登入';
+        userName.title = user.email || '';
+      } else {
+        btnLogin.style.display = '';
+        userInfoEl.style.display = 'none';
+      }
+    });
+
+    btnLogin.addEventListener('click', async () => {
+      try {
+        await fa.login();
+        showToast('✓ Google 登入成功 — 配額改 per-user 計算', 2400);
+      } catch (e) {
+        if (/popup-closed|cancelled/i.test(e?.code || '')) return;
+        showError('登入失敗：' + (e?.message || e));
+      }
+    });
+    btnLogout.addEventListener('click', async () => {
+      try {
+        await fa.logout();
+        showToast('已登出', 1500);
+      } catch {}
+    });
+  }
+
+  if (window.firebaseAuth) {
+    bindFirebaseAuth();
+  } else {
+    window.addEventListener('firebase-auth-ready', bindFirebaseAuth, { once: true });
+  }
+
   // ===== Keyboard Shortcuts =====
   // Ctrl/Cmd+Enter 任何欄位 → 生成
   // 1-6 → 切分類 tab（不在輸入框時）
@@ -1652,10 +1701,17 @@
     const backendUrl = CFG.BACKEND_URL;
     if (!backendUrl) throw new Error('後端 URL 未設定');
 
+    // 取 Firebase Auth ID token（若使用者已登入）
+    // 後端拿到 token 會切到 per-user 配額；無 token 則 fallback per-IP
+    let userToken = null;
+    try {
+      userToken = window.firebaseAuth ? await window.firebaseAuth.getToken() : null;
+    } catch { /* 拿不到 token 不擋，當匿名 */ }
+
     const res = await fetch(backendUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ data: { prompt, fields, turnstileToken, n: imagesN } }),
+      body: JSON.stringify({ data: { prompt, fields, turnstileToken, n: imagesN, userToken } }),
     });
 
     let json;

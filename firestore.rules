@@ -1,12 +1,32 @@
 rules_version = '2';
 
-// picture-master quota tracking — only Cloud Functions (admin SDK) may read/write.
-// Browser-side access is fully denied.
+// picture-master Firestore rules
+// - quota / generations 只給 Cloud Functions (admin SDK) 寫
+// - generations / quota 允許 admin email 讀（給 /admin 後台用）
+// - 其他全部 deny
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /quota/{docId} {
-      allow read, write: if false;
+
+    // Admin email allowlist — 同步維護 index.html __PM_CONFIG.ADMIN_EMAILS
+    function isAdmin() {
+      return request.auth != null
+          && request.auth.token.email_verified == true
+          && request.auth.token.email in [
+            'ipad@mail2.smes.tyc.edu.tw',
+            'cagooo@gmail.com'
+          ];
     }
+
+    match /quota/{docId} {
+      allow read: if isAdmin();
+      allow write: if false;     // 只 Cloud Functions admin SDK 寫
+    }
+
+    match /generations/{docId} {
+      allow read: if isAdmin();
+      allow write: if false;     // 只 Cloud Functions admin SDK 寫
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

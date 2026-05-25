@@ -85,6 +85,26 @@ body::before{
 .statusbar .right a{color:#8a857a;text-decoration:none;border-bottom:1px dashed rgba(138,133,122,.4)}
 .statusbar .right a:hover{color:#cfcab0}
 
+/* User auth area in statusbar */
+.user-area{display:inline-flex;align-items:center;gap:8px}
+.btn-auth{
+  background:transparent;border:1px solid rgba(207,202,176,.3);
+  color:#8a857a;padding:4px 10px;border-radius:2px;
+  font-family:var(--font-mono);font-size:10px;letter-spacing:.12em;
+  text-transform:uppercase;cursor:pointer;line-height:1;
+  transition:all .12s;
+}
+.btn-auth:hover{color:var(--chalk-yellow);border-color:var(--chalk-yellow)}
+#user-info{display:inline-flex;align-items:center;gap:7px}
+.user-avatar{
+  width:20px;height:20px;border-radius:50%;
+  border:1px solid rgba(207,202,176,.4);object-fit:cover;display:block;
+}
+.user-name{
+  color:#cfcab0;font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;
+  text-transform:none;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+
 /* ========== Hero ========== */
 .hero{
   position:relative;z-index:2;

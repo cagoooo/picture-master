@@ -48,6 +48,16 @@
       TURNSTILE_SITE_KEY: 'PLACEHOLDER_NOT_CONFIGURED',
       BACKEND_URL: 'https://us-central1-picture-master.cloudfunctions.net/generateImage',
       BUILD_VERSION: '__BUILD_VERSION__',
+      FIREBASE: {
+        apiKey: 'AIzaSyC8-x077Cj1ncOBaaY0xRP0X_ck-fJahYs',
+        authDomain: 'picture-master.firebaseapp.com',
+        projectId: 'picture-master',
+        appId: '1:1008956610373:web:cbf415f7685e450b9fd02c',
+      },
+      ADMIN_EMAILS: [
+        'ipad@mail2.smes.tyc.edu.tw',
+        'cagooo@gmail.com',
+      ],
     };
   </script>
 
@@ -65,6 +75,14 @@
     <div class="right">
       <span class="pill"><span class="ledot"></span>LIVE · gpt-image-2</span>
       <span>QUOTA · <span id="quota-remain">5</span>/<span id="quota-max">5</span></span>
+      <span id="user-area" class="user-area">
+        <button id="btn-login" class="btn-auth" title="Google 登入後，配額不再跟同網路的人共算">🔓 登入</button>
+        <span id="user-info" style="display:none">
+          <img id="user-avatar" class="user-avatar" alt="user">
+          <span id="user-name" class="user-name"></span>
+          <button id="btn-logout" class="btn-auth" title="登出">✕</button>
+        </span>
+      </span>
       <a href="#" id="kbd-hint" title="按 ? 查看完整快捷鍵清單">⌨ ?</a>
       <a href="https://github.com/cagoooo/picture-master" target="_blank" rel="noopener">GitHub ↗</a>
     </div>
@@ -435,5 +453,30 @@
 
 
   <script src="./app.js?v=__BUILD_VERSION__"></script>
+
+  <!-- Firebase Auth — module 形式載入官方 CDN，掛 window.firebaseAuth 給 app.js 用 -->
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js';
+    import {
+      getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
+    } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js';
+
+    const cfg = window.__PM_CONFIG?.FIREBASE;
+    if (cfg && cfg.apiKey) {
+      const app = initializeApp(cfg);
+      const auth = getAuth(app);
+      const provider = new GoogleAuthProvider();
+
+      window.firebaseAuth = {
+        auth,
+        login: () => signInWithPopup(auth, provider),
+        logout: () => signOut(auth),
+        onChange: (cb) => onAuthStateChanged(auth, cb),
+        getToken: async () => auth.currentUser ? auth.currentUser.getIdToken() : null,
+      };
+      // 通知 app.js Auth ready（app.js 可能在這之前先載入完）
+      window.dispatchEvent(new CustomEvent('firebase-auth-ready'));
+    }
+  </script>
 </body>
 </html>

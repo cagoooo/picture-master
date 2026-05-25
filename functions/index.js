@@ -27,11 +27,13 @@ const { defineSecret } = require('firebase-functions/params');
 const { setGlobalOptions } = require('firebase-functions/v2');
 const { initializeApp } = require('firebase-admin/app');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
+const { getAuth } = require('firebase-admin/auth');
 const OpenAI = require('openai');
 const crypto = require('node:crypto');
 
 initializeApp();
 const db = getFirestore();
+const adminAuth = getAuth();
 
 setGlobalOptions({
   region: 'us-central1',
@@ -226,12 +228,29 @@ exports.generateImage = onRequest(
         return res.status(400).json({ error: { message: 'prompt 長度超過 3000 字' } });
       }
 
-      // Caller IP
+      // Caller IP（給匿名使用者當 quota key + log）
       const ip =
         (req.headers['x-forwarded-for'] || '').split(',')[0]?.trim() ||
         req.ip ||
         'unknown';
       const ipHash = crypto.createHash('sha256').update(ip).digest('hex').slice(0, 16);
+
+      // Firebase Auth：若 client 傳 userToken → verify → 切到 per-user quota
+      // 沒登入或 token 無效 → fallback per-IP（不擋人）
+      let userInfo = null;   // { uid, email, displayName } 或 null
+      const userToken = payload.userToken;
+      if (userToken && typeof userToken === 'string') {
+        try {
+          const decoded = await adminAuth.verifyIdToken(userToken);
+          userInfo = {
+            uid: decoded.uid,
+            email: decoded.email || '',
+            name: decoded.name || decoded.email || '匿名',
+          };
+        } catch (e) {
+          console.warn('userToken verify failed', e?.message);
+        }
+      }
 
       // NOTE: No "started" notification — wastes LINE monthly push quota (200-500 free).
       // Admin learns nothing actionable from "user clicked generate" that they don't
@@ -267,9 +286,12 @@ exports.generateImage = onRequest(
         }
       }
 
-      // Rate limit
+      // Rate limit — per-user 優先（登入），fallback per-IP（匿名）
       const today = new Date().toISOString().slice(0, 10);
-      const quotaRef = db.collection('quota').doc(`${today}_${ipHash}`);
+      const quotaKey = userInfo
+        ? `${today}_user_${userInfo.uid}`
+        : `${today}_${ipHash}`;
+      const quotaRef = db.collection('quota').doc(quotaKey);
       const snap = await quotaRef.get();
       const used = snap.exists ? snap.data().count || 0 : 0;
       if (used >= DAILY_QUOTA) {
@@ -341,6 +363,8 @@ exports.generateImage = onRequest(
         logGeneration({
           status: 'failed',
           ipHash,
+          uid: userInfo?.uid || null,
+          email: userInfo?.email || null,
           model: IMAGE_MODEL,
           promptLen: prompt.length,
           hasCJK: CJK_RE.test(prompt),
@@ -357,6 +381,8 @@ exports.generateImage = onRequest(
         {
           count: FieldValue.increment(1),
           ipHash,
+          uid: userInfo?.uid || null,
+          email: userInfo?.email || null,
           updatedAt: FieldValue.serverTimestamp(),
         },
         { merge: true }
@@ -366,6 +392,8 @@ exports.generateImage = onRequest(
       logGeneration({
         status: 'success',
         ipHash,
+        uid: userInfo?.uid || null,
+        email: userInfo?.email || null,
         model: IMAGE_MODEL,
         quality: IMAGE_QUALITY,
         imageCount: images.length,
