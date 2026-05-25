@@ -1012,6 +1012,32 @@ body::before{
 /* =========================================================
    Tweaks 面板 — 浮動齒輪鈕 + 右側滑入抽屜
    ========================================================= */
+/* 隱形 admin 入口 — 左下角小點，hover 才展開（只有 admin 知道在這） */
+.admin-stealth{
+  position:fixed;left:8px;bottom:8px;z-index:70;
+  width:10px;height:10px;border-radius:50%;
+  background:rgba(207,202,176,.18);
+  border:none;cursor:pointer;
+  text-decoration:none;font-size:0;color:transparent;
+  display:inline-flex;align-items:center;justify-content:center;
+  overflow:hidden;
+  transition:width .25s, height .25s, background .25s, padding .25s,
+             border-radius .2s, font-size .15s, color .15s;
+}
+.admin-stealth:hover,
+.admin-stealth:focus{
+  width:auto;height:auto;padding:7px 14px;
+  border-radius:3px;
+  background:rgba(31,42,38,.95);
+  color:var(--chalk-yellow);
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;
+  font-weight:700;text-transform:uppercase;
+  border:1px solid rgba(246,197,96,.5);
+  outline:none;
+  box-shadow:0 4px 12px rgba(0,0,0,.4);
+}
+.admin-stealth::before{content:"📊 admin"}
+
 .tweaks-fab{
   position:fixed;right:20px;bottom:20px;z-index:80;
   width:44px;height:44px;border-radius:50%;
