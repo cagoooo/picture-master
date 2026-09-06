@@ -2,6 +2,8 @@
 
 > 黑板 × 工作室 · 老師備課用的線稿生成工具 · 一鍵 A4 列印學習單
 
+> 📌 **目前版本：v0.5.0**（依據 `package.json`）
+
 🌐 **線上工具**：https://cagoooo.github.io/picture-master/
 
 ![試卷生圖 Studio](og-image.png)
