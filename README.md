@@ -12,7 +12,7 @@ Made with ♡ by [阿凱老師](https://www.smes.tyc.edu.tw/modules/school/index
 
 ## 🎯 能做什麼
 
-四欄輸入 → OpenAI gpt-image-2 →「黑白線稿 × 2 張」→ 一鍵列印 A4 學習單。
+四欄輸入 → Google Gemini 生圖 →「黑白線稿 × 2 張」→ 一鍵列印 A4 學習單。
 專為國小老師備課設計：**列印不吃墨水 · 中文精準渲染 · 著色頁直接用**。
 
 ```
@@ -27,12 +27,12 @@ Made with ♡ by [阿凱老師](https://www.smes.tyc.edu.tw/modules/school/index
 └────────────────────────┘         └─────────────────────┘
 ```
 
-## ✨ v0.5 核心功能
+## ✨ v0.6 核心功能
 
 ### 生成
 - 4 欄表單（標題 / 對話 / 角色 / 背景）→ 自動合成 prompt
-- OpenAI `gpt-image-2` (1024×1024, medium quality, 2 張)
-- **中文精準渲染**（不再像 Google Imagen 變日文片假名）
+- Google `gemini-3.1-flash-image`（失敗自動改用 `gemini-3-pro-image`，1024×1024，2 張）
+- **中文精準渲染**（新一代 Gemini 生圖已能正確寫繁體中文標題與對話框）
 - 🔄 **重新生成**：同設定一鍵再產一輪
 - ✏️ **編輯 prompt 重生**：直接改合成的 prompt 後重生（進階）
 
@@ -79,7 +79,7 @@ Made with ♡ by [阿凱老師](https://www.smes.tyc.edu.tw/modules/school/index
 
 - **前端**：單檔 `index.html`（內嵌 CSS + vanilla JS, 2000+ 行）→ GitHub Pages
 - **後端**：Firebase Cloud Functions v2 (Node 22) → `picture-master` GCP 專案
-- **圖像 API**：OpenAI `gpt-image-2`（medium quality, 1024×1024）
+- **圖像 API**：Google Gemini `gemini-3.1-flash-image` → 備援 `gemini-3-pro-image`（1024×1024，輸出 JPEG）
 - **三層護欄**：
   1. ✅ Cloudflare Turnstile 人機驗證
   2. ✅ Firestore per-IP 每日 5 次配額
@@ -96,9 +96,11 @@ Made with ♡ by [阿凱老師](https://www.smes.tyc.edu.tw/modules/school/index
 |---|---|---|
 | v0.1-0.2 | Google `imagen-4.0-generate-001` | 中文字變日文片假名亂碼 ❌ |
 | v0.2-0.3 | Google `gemini-2.5-flash-image`（Nano Banana） | 中文字仍亂碼 ❌ |
-| v0.4+ | OpenAI `gpt-image-2` | 中文精準渲染 ✅ |
+| v0.4-0.5 | OpenAI `gpt-image-2` | 中文精準渲染 ✅（預付額度用完停用） |
+| v0.6+ | Google `gemini-3.1-flash-image` / `gemini-3-pro-image` | 繁中標題、對話框正確 ✅（2026-10-22 實測） |
 
 ### 版本歷程
+- **v0.6.0** — 生圖改回 Google Gemini（3.1 Flash Image，備援 3 Pro Image），移除 OpenAI 相依
 - **v0.5.0** — 黑板 × 紙張 Studio UI 全面重做 + A4 列印 + 歷史 + 16 範例
 - **v0.4.1** — 修放大鏡空白 bug → Lightbox modal
 - **v0.4.0** — 換 OpenAI gpt-image-2 修中文亂碼
@@ -152,7 +154,7 @@ npm run test:ui              # 互動 UI mode
 - `04-lightbox` — 開啟 / ← → 切換 / Esc 關 / 邊界 disabled
 - `05-history` — 寫入 / 重整持久 / 單筆刪除
 
-本機模式自動跑 mock SVG，**不會打 OpenAI 真實 API**。
+本機模式自動跑 mock SVG，**不會打 Gemini 真實 API**。
 
 ## 🔐 三層護欄設定
 
@@ -193,13 +195,14 @@ gh workflow run "Deploy to GitHub Pages" -R cagoooo/picture-master
 
 ## 💰 計費 + 熔斷
 
-OpenAI `gpt-image-2`（medium quality, 1024×1024）：**約 $0.04-0.08 / 張**
-- 每次生 2 張 ≈ $0.08-0.16
-- 每 IP 每日 5 次上限 ≈ 最壞 $0.4-0.8 USD/IP/天
+Google Gemini 生圖（費用依 Google 官方價目表，掛在 `picture-master` 專案帳單）
+- 每次生 2 張（批次模式 1 張）
+- 每 IP / 每帳號每日 5 次上限
 - 加 `maxInstances=5` 阻止 quota 失控
+- GCP 端已設每模型每日請求上限 2000 次（`generate_requests_per_model_per_day`）
+- Google AI Studio 端有專案每月花費上限（Spend cap），到 https://aistudio.google.com 帳務頁調整
 
-**強烈建議**：到 https://platform.openai.com → Billing → Usage limits
-設「Hard limit」$5（測試期）或 $10（穩定期）當最後熔斷。
+金鑰 `GEMINI_API_KEY` 放在 Secret Manager，該把金鑰只允許呼叫 `generativelanguage.googleapis.com`。
 
 ## 📂 專案結構
 
@@ -215,7 +218,7 @@ picture/
 │   └── make-icons.py           # 一鍵重產 favicon + og-image
 ├── functions/
 │   ├── index.js                # generateImage Cloud Function
-│   └── package.json            # @openai/openai + firebase deps
+│   └── package.json            # firebase deps（Gemini 用原生 fetch）
 ├── .github/workflows/
 │   └── deploy.yml              # GitHub Pages 部署 + 注入 Turnstile + BUILD_VERSION
 ├── firebase.json               # functions + firestore 設定
@@ -241,7 +244,7 @@ picture/
 Made with ❤️ by [阿凱老師](https://www.smes.tyc.edu.tw/modules/school/index.php?department_id=2&zone_id=0&page_id=2&content_id=11&type=news&from_op=all_news#a5)
 @ 桃園市龍潭區石門國民小學
 
-圖像由 OpenAI gpt-image-2 生成 · 程式碼 MIT License
+圖像由 Google Gemini 生成 · 程式碼 MIT License
 
 ---
 

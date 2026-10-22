@@ -24,7 +24,7 @@
        og:image 必須絕對 URL（FB/LINE crawler 在外部 fetch）+ ?v= 版本參數
        讓社群平台每次部署都重抓（LINE 快取最猛，不加會卡舊圖數天） -->
   <meta property="og:title" content="試卷生圖 Studio · 老師備課一鍵生黑白線稿">
-  <meta property="og:description" content="黑板 × 紙張雙欄介面，輸入標題/角色/對話/場景，OpenAI gpt-image-2 一鍵產學習單插畫。Made by 阿凱老師 @ 石門國小。">
+  <meta property="og:description" content="黑板 × 紙張雙欄介面，輸入標題/角色/對話/場景，Google Gemini 一鍵產學習單插畫。Made by 阿凱老師 @ 石門國小。">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://cagoooo.github.io/picture-master/">
   <meta property="og:image" content="https://cagoooo.github.io/picture-master/og-image.png?v=__BUILD_VERSION__">
@@ -35,7 +35,7 @@
   <meta property="og:site_name" content="試卷生圖 Studio">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="試卷生圖 Studio · 老師備課一鍵生黑白線稿">
-  <meta name="twitter:description" content="黑板 × 紙張雙欄介面，OpenAI gpt-image-2 一鍵產學習單插畫。">
+  <meta name="twitter:description" content="黑板 × 紙張雙欄介面，Google Gemini 一鍵產學習單插畫。">
   <meta name="twitter:image" content="https://cagoooo.github.io/picture-master/og-image.png?v=__BUILD_VERSION__">
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -73,7 +73,7 @@
       <span>試卷生圖 · STUDIO</span>
     </div>
     <div class="right">
-      <span class="pill"><span class="ledot"></span>LIVE · gpt-image-2</span>
+      <span class="pill"><span class="ledot"></span>LIVE · Gemini</span>
       <span>QUOTA · <span id="quota-remain">5</span>/<span id="quota-max">5</span></span>
       <span id="user-area" class="user-area">
         <button id="btn-login" class="btn-auth" title="Google 登入後，配額不再跟同網路的人共算">🔓 登入</button>
@@ -90,7 +90,7 @@
 
   <!-- ===== Hero ===== -->
   <header class="hero">
-    <div class="kicker">Picture Master · <span id="version-tag">v0.5.0</span> · OpenAI gpt-image-2</div>
+    <div class="kicker">Picture Master · <span id="version-tag">v0.6.0</span> · Google Gemini</div>
     <h1>備課時，<br>畫一張剛剛好的<em>學習單插畫</em>。</h1>
     <p class="lede">
       四個欄位、一鍵生成。專門產純黑白線稿，<b>列印不吃墨水</b>，
@@ -235,7 +235,7 @@
             </g>
           </svg>
           <p>正在繪製… 約需 10–20 秒</p>
-          <p class="hint">gpt-image-2 · 1024 × 1024 · ×2</p>
+          <p class="hint">Gemini · 1024 × 1024 · ×2</p>
         </div>
 
         <!-- Ready state -->
@@ -305,7 +305,7 @@
     </div>
     <div class="col">
       <div class="specs">
-        <div class="row"><span class="k">MODEL</span><span class="v">OpenAI gpt-image-2</span></div>
+        <div class="row"><span class="k">MODEL</span><span class="v">Gemini 3.1 Flash Image</span></div>
         <div class="row"><span class="k">SIZE</span><span class="v">1024 × 1024 px</span></div>
         <div class="row"><span class="k">STYLE</span><span class="v">黑白線稿 · 著色頁</span></div>
         <div class="row"><span class="k">CJK</span><span class="v">中文精準渲染 ✓</span></div>
@@ -316,12 +316,12 @@
 
   <!-- ===== Footer ===== -->
   <footer class="footer">
-    <span>© 2026 · 試卷生圖 STUDIO · <span id="version-tag-footer">v0.5.0</span></span>
+    <span>© 2026 · 試卷生圖 STUDIO · <span id="version-tag-footer">v0.6.0</span></span>
     <span class="heart">Made with ♡ by
       <a href="https://www.smes.tyc.edu.tw/modules/school/index.php?department_id=2&zone_id=0&page_id=2&content_id=11&type=news&from_op=all_news#a5"
          target="_blank" rel="noopener">阿凱老師</a>
       @ 桃園市龍潭區石門國民小學</span>
-    <span>OPENAI · CLOUDFLARE · FIREBASE</span>
+    <span>GEMINI · CLOUDFLARE · FIREBASE</span>
   </footer>
 
   <!-- ===== Lightbox ===== -->
@@ -390,7 +390,7 @@
       <h3>📊 批次模式 · CSV 一次生 N 組</h3>
       <p class="batch-intro">
         上傳 CSV 檔（標頭：<code>title,character,dialogue,background</code>），
-        系統會逐筆送 OpenAI 生圖。<br>
+        系統會逐筆送 Gemini 生圖。<br>
         每行用 <b>1 張</b> 省配額（10 行剛好打滿今日 5 次配額 × 2 倍效率），
         或選 <b>2 張</b> 拿變體。
       </p>

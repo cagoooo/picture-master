@@ -558,11 +558,18 @@
     s = s.replace(/-+/g, '-').replace(/^-|-$/g, '');
     return s || 'untitled';
   }
-  function makeFilename(i) {
+  // 依 data URI 的 MIME 決定副檔名（Gemini 回傳 JPEG）
+  function extFromDataUri(src) {
+    const m = /^data:image\/(png|jpe?g|webp|svg\+xml)/i.exec(src || '');
+    if (!m) return 'png';
+    const t = m[1].toLowerCase();
+    return t === 'jpeg' ? 'jpg' : t === 'svg+xml' ? 'svg' : t;
+  }
+  function makeFilename(i, src) {
     const title = fTitle.value.trim();
     const character = fChar.value.trim();
     const slug = slugifyForFilename(title || character);
-    return `${slug}-${String(i + 1).padStart(2, '0')}.png`;
+    return `${slug}-${String(i + 1).padStart(2, '0')}.${extFromDataUri(src)}`;
   }
 
   // ===== Toast (生成成功 / 提示) =====
@@ -1267,7 +1274,7 @@
     const slug = slugifyForFilename(item.fields.title || item.fields.character || `batch-${item.row}`);
     if (item.status === 'ok') {
       const dls = item.images.map((src, i) =>
-        `<a href="${src}" download="${slug}-${item.row}-${i + 1}.png" class="dl">↓ 圖${i + 1}</a>`
+        `<a href="${src}" download="${slug}-${item.row}-${i + 1}.${extFromDataUri(src)}" class="dl">↓ 圖${i + 1}</a>`
       ).join('');
       row.innerHTML = `<span class="status-ok">✓</span>
                       <span class="label">#${item.row} · ${esc(label)}</span>
@@ -1602,11 +1609,11 @@
     if (idx < 0 || idx >= _lastImages.length) return;
     _lbIdx = idx;
     const src = _lastImages[idx];
-    const dlName = makeFilename(idx);
+    const dlName = makeFilename(idx, src);
     lightboxImg.src = src;
     lightboxDl.href = src;
     lightboxDl.download = dlName;
-    lightboxCap.textContent = `ILLUSTRATION 0${idx + 1} · 1024×1024 · PNG`;
+    lightboxCap.textContent = `ILLUSTRATION 0${idx + 1} · 1024×1024 · ${extFromDataUri(src).toUpperCase()}`;
     // 左右鈕 disabled 狀態 + 只有 1 張時整組隱藏
     const multi = _lastImages.length > 1;
     $('lb-prev').style.display = multi ? '' : 'none';
@@ -1673,7 +1680,7 @@
     const grid = elReady;
     grid.innerHTML = '';
     images.forEach((src, i) => {
-      const dlName = makeFilename(i);
+      const dlName = makeFilename(i, src);
       const card = document.createElement('div');
       card.className = 'img-card';
       card.innerHTML = `
@@ -1748,7 +1755,7 @@
 <path d="M 170 285 L 200 270 L 230 285" fill="none" stroke="black" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M 180 320 L 175 360" stroke="black" stroke-width="4" stroke-linecap="round"/>
 <path d="M 220 320 L 225 360" stroke="black" stroke-width="4" stroke-linecap="round"/>
-<text x="200" y="385" font-family="monospace" font-size="9" text-anchor="middle" fill="#999">本機預覽佔位圖 · 部署後會換成 gpt-image-2 真實生成</text>
+<text x="200" y="385" font-family="monospace" font-size="9" text-anchor="middle" fill="#999">本機預覽佔位圖 · 部署後會換成 Gemini 真實生成</text>
 </svg>`;
     return 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
   }

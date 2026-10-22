@@ -4,19 +4,18 @@
  * generateImage: callable HTTP endpoint that:
  *   1. Verifies Cloudflare Turnstile token (fail-open if secret unset, fail-closed on CF API error)
  *   2. Enforces per-IP per-day quota via Firestore
- *   3. Calls OpenAI gpt-image-2 (Apr 2026, ~99% typography accuracy for CJK) via openai SDK
- *   4. Returns 2 PNG images as data URIs
+ *   3. Calls Gemini image models (gemini-3.1-flash-image, fallback gemini-3-pro-image)
+ *   4. Returns 1-2 images as data URIs (Gemini returns JPEG)
  *   5. Pushes admin LINE Flex card on started / success / failed (best-effort, fail-open)
  *
- * Why OpenAI gpt-image-2 over Imagen 4 / Nano Banana:
- *   Imagen 4 + Gemini 2.5 Flash Image both produce garbled CJK glyphs (Japanese
- *   katakana / Cyrillic substitutions, made-up "characters") even with explicit
- *   "render Chinese exactly" prompts. gpt-image-2 has near-perfect typography
- *   including CJK / Hindi / Bengali. For an exam-illustration tool aimed at
- *   Taiwanese teachers, correct Chinese rendering is non-negotiable.
+ * Model history:
+ *   v0.2-0.3 gemini-2.5-flash-image garbled CJK → v0.4 switched to OpenAI gpt-image-2.
+ *   v0.6 (2026-10) back to Gemini: gemini-3.1-flash-image / gemini-3-pro-image render
+ *   Traditional Chinese titles + speech bubbles correctly (tested 2026-10-22), and the
+ *   OpenAI prepaid credits ran out. Correct Chinese rendering is non-negotiable.
  *
  * Secrets needed (set via `firebase functions:secrets:set NAME`):
- *   - OPENAI_API_KEY                       (OpenAI API access for gpt-image-2)
+ *   - GEMINI_API_KEY                       (Gemini API key, restricted to generativelanguage)
  *   - TURNSTILE_SECRET                     (Cloudflare Turnstile secret key)
  *   - PICTURE_LINE_CHANNEL_ACCESS_TOKEN    (shared LINE Bot Channel push token)
  *   - PICTURE_LINE_ADMIN_USER_ID           (LINE userId to receive admin notifications)
@@ -28,7 +27,6 @@ const { setGlobalOptions } = require('firebase-functions/v2');
 const { initializeApp } = require('firebase-admin/app');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { getAuth } = require('firebase-admin/auth');
-const OpenAI = require('openai');
 const crypto = require('node:crypto');
 
 initializeApp();
@@ -40,7 +38,7 @@ setGlobalOptions({
   maxInstances: 5,
 });
 
-const OPENAI_API_KEY = defineSecret('OPENAI_API_KEY');
+const GEMINI_API_KEY = defineSecret('GEMINI_API_KEY');
 const TURNSTILE_SECRET = defineSecret('TURNSTILE_SECRET');
 const PICTURE_LINE_CHANNEL_ACCESS_TOKEN = defineSecret('PICTURE_LINE_CHANNEL_ACCESS_TOKEN');
 const PICTURE_LINE_ADMIN_USER_ID = defineSecret('PICTURE_LINE_ADMIN_USER_ID');
@@ -48,9 +46,54 @@ const PICTURE_LINE_ADMIN_USER_ID = defineSecret('PICTURE_LINE_ADMIN_USER_ID');
 const DAILY_QUOTA = 5;
 const PLACEHOLDER = 'PLACEHOLDER_NOT_CONFIGURED';
 const APP_NAME = '試卷出題配圖生成大師';
-const IMAGE_MODEL = 'gpt-image-2';
-const IMAGE_QUALITY = 'medium'; // ~$0.04-0.08/img at 1024x1024
-const IMAGE_SIZE = '1024x1024';
+// 依序嘗試：flash 快又便宜，失敗（非內容政策）才改用 pro
+const IMAGE_MODELS = ['gemini-3.1-flash-image', 'gemini-3-pro-image'];
+const IMAGE_QUALITY = '1K';
+const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models';
+
+// 呼叫一次 Gemini 生一張圖；失敗時丟出帶 status 的 Error
+async function geminiGenerateOne(apiKey, model, prompt) {
+  const r = await fetch(`${GEMINI_ENDPOINT}/${model}:generateContent`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { responseModalities: ['IMAGE'], imageConfig: { aspectRatio: '1:1' } },
+    }),
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    const err = new Error(j?.error?.message || `Gemini HTTP ${r.status}`);
+    err.status = r.status;
+    throw err;
+  }
+  const cand = j.candidates?.[0];
+  const img = (cand?.content?.parts || []).find((p) => p.inlineData?.data);
+  if (!img) {
+    const reason = cand?.finishReason || j.promptFeedback?.blockReason || 'NO_IMAGE';
+    const err = new Error(`無圖回傳（${reason}），可能觸發安全過濾`);
+    err.status = 400;
+    err.safety = true;
+    throw err;
+  }
+  return `data:${img.inlineData.mimeType || 'image/jpeg'};base64,${img.inlineData.data}`;
+}
+
+// 生 n 張：同一模型並行呼叫；整批失敗且非安全過濾才換下一個模型
+async function geminiGenerate(apiKey, prompt, n) {
+  let lastErr = null;
+  for (const model of IMAGE_MODELS) {
+    const settled = await Promise.allSettled(
+      Array.from({ length: n }, () => geminiGenerateOne(apiKey, model, prompt))
+    );
+    const images = settled.filter((s) => s.status === 'fulfilled').map((s) => s.value);
+    if (images.length) return { images, model };
+    lastErr = settled.find((s) => s.status === 'rejected')?.reason || lastErr;
+    console.error('Gemini generate failed', model, lastErr?.status, lastErr?.message);
+    if (lastErr?.safety) break;
+  }
+  throw lastErr || new Error('Gemini 無圖回傳');
+}
 const IMAGES_PER_CALL = 2;
 
 const ALLOWED_ORIGINS = [
@@ -191,7 +234,7 @@ exports.generateImage = onRequest(
     timeoutSeconds: 120,
     memory: '512MiB',
     secrets: [
-      OPENAI_API_KEY,
+      GEMINI_API_KEY,
       TURNSTILE_SECRET,
       PICTURE_LINE_CHANNEL_ACCESS_TOKEN,
       PICTURE_LINE_ADMIN_USER_ID,
@@ -309,63 +352,52 @@ exports.generateImage = onRequest(
         });
       }
 
-      // Call OpenAI gpt-image-2 (near-perfect CJK text rendering)
-      const apiKey = OPENAI_API_KEY.value();
+      // Call Gemini image model
+      const apiKey = GEMINI_API_KEY.value();
       if (!apiKey || apiKey === PLACEHOLDER) {
-        return res.status(500).json({ error: { message: 'OPENAI_API_KEY 未設定，請聯絡管理員' } });
+        return res.status(500).json({ error: { message: 'GEMINI_API_KEY 未設定，請聯絡管理員' } });
       }
 
-      const openai = new OpenAI({ apiKey });
-
       let images = [];
-      let openaiErr = null;
+      let usedModel = IMAGE_MODELS[0];
+      let genErr = null;
       try {
-        const result = await openai.images.generate({
-          model: IMAGE_MODEL,
-          prompt,
-          n: imagesPerCall,
-          size: IMAGE_SIZE,
-          quality: IMAGE_QUALITY,
-          output_format: 'png',
-          background: 'opaque',
-        });
-        images = (result.data || [])
-          .filter((d) => d.b64_json)
-          .map((d) => `data:image/png;base64,${d.b64_json}`);
+        const out = await geminiGenerate(apiKey, prompt, imagesPerCall);
+        images = out.images;
+        usedModel = out.model;
       } catch (e) {
-        openaiErr = e;
-        console.error('OpenAI images.generate failed', e?.status, e?.message);
+        genErr = e;
       }
 
       const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
 
       if (!images.length) {
-        const errMsg = openaiErr?.message || '無圖回傳，可能觸發安全過濾或內容政策';
-        const errStatus = openaiErr?.status || 502;
+        const errMsg = genErr?.message || '無圖回傳，可能觸發安全過濾或內容政策';
+        const errStatus = genErr?.status || 502;
         await notifyAdminCard({
           status: 'failed',
           title: '圖像生成失敗',
           appName: APP_NAME,
           fields: [
             ...cardFields,
-            { icon: '🤖', label: '模型', value: IMAGE_MODEL },
+            { icon: '🤖', label: '模型', value: usedModel },
             { icon: '💥', label: '錯誤', value: trim(errMsg, 200) },
             { icon: '🚦', label: 'HTTP', value: String(errStatus) },
           ],
           footerNote: `⏱️ ${elapsed}s`,
         });
-        // User-friendly message based on common OpenAI errors
+        // User-friendly message based on common Gemini errors
         let userMsg = '圖像生成失敗，可能 prompt 觸發內容政策。請調整角色 / 對話描述後重試。';
-        if (errStatus === 429) userMsg = 'OpenAI 額度暫時用完或頻率太高，請稍候再試。';
-        else if (errStatus === 401 || errStatus === 403) userMsg = '伺服器設定錯誤（OpenAI API key 無效），請聯絡管理員。';
-        else if (errStatus === 400 && /safety|content_policy/i.test(errMsg)) userMsg = '描述觸發 OpenAI 安全過濾，請改寫角色 / 對話內容。';
+        if (errStatus === 429) userMsg = '生圖服務今日額度暫時用完或頻率太高，請稍候再試。';
+        else if (errStatus === 401 || errStatus === 403) userMsg = '伺服器設定錯誤（Gemini API key 無效），請聯絡管理員。';
+        else if (genErr?.safety) userMsg = '描述觸發安全過濾，請改寫角色 / 對話內容。';
         // 記錄失敗事件供 admin 後台分析（hashed IP，無 PII）
         logGeneration({
           status: 'failed',
           ipHash,
           uid: userInfo?.uid || null,
           email: userInfo?.email || null,
-          model: IMAGE_MODEL,
+          model: usedModel,
           promptLen: prompt.length,
           hasCJK: CJK_RE.test(prompt),
           errStatus: Number(errStatus) || 500,
@@ -394,7 +426,7 @@ exports.generateImage = onRequest(
         ipHash,
         uid: userInfo?.uid || null,
         email: userInfo?.email || null,
-        model: IMAGE_MODEL,
+        model: usedModel,
         quality: IMAGE_QUALITY,
         imageCount: images.length,
         promptLen: prompt.length,
@@ -417,7 +449,7 @@ exports.generateImage = onRequest(
         appName: APP_NAME,
         fields: [
           ...cardFields,
-          { icon: '🤖', label: '模型', value: `${IMAGE_MODEL} (${IMAGE_QUALITY})` },
+          { icon: '🤖', label: '模型', value: `${usedModel} (${IMAGE_QUALITY})` },
           { icon: '🖼️', label: '張數', value: `${images.length} 張` },
           { icon: '📊', label: '今日', value: `${used + 1} / ${DAILY_QUOTA}` },
         ],
