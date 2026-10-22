@@ -4,13 +4,13 @@
  * generateImage: callable HTTP endpoint that:
  *   1. Verifies Cloudflare Turnstile token (fail-open if secret unset, fail-closed on CF API error)
  *   2. Enforces per-IP per-day quota via Firestore
- *   3. Calls Gemini image models (gemini-3.1-flash-image, fallback gemini-3-pro-image)
+ *   3. Calls Gemini gemini-3.1-flash-lite-image (cheapest; no pro fallback by design)
  *   4. Returns 1-2 images as data URIs (Gemini returns JPEG)
  *   5. Pushes admin LINE Flex card on started / success / failed (best-effort, fail-open)
  *
  * Model history:
  *   v0.2-0.3 gemini-2.5-flash-image garbled CJK → v0.4 switched to OpenAI gpt-image-2.
- *   v0.6 (2026-10) back to Gemini: gemini-3.1-flash-image / gemini-3-pro-image render
+ *   v0.6 (2026-10) back to Gemini: gemini-3.1-flash-lite-image renders
  *   Traditional Chinese titles + speech bubbles correctly (tested 2026-10-22), and the
  *   OpenAI prepaid credits ran out. Correct Chinese rendering is non-negotiable.
  *
@@ -46,8 +46,12 @@ const PICTURE_LINE_ADMIN_USER_ID = defineSecret('PICTURE_LINE_ADMIN_USER_ID');
 const DAILY_QUOTA = 5;
 const PLACEHOLDER = 'PLACEHOLDER_NOT_CONFIGURED';
 const APP_NAME = '試卷出題配圖生成大師';
-// 依序嘗試：flash 快又便宜，失敗（非內容政策）才改用 pro
-const IMAGE_MODELS = ['gemini-3.1-flash-image', 'gemini-3-pro-image'];
+// 只用最便宜的 flash-lite；不要加 pro 當備援（費用考量，使用者明確要求）
+const IMAGE_MODELS = ['gemini-3.1-flash-lite-image'];
+// flash-lite 會把 EXACTLY 與引號照抄進圖裡，補一句說明（2026-10-22 實測有效）
+const PROMPT_SUFFIX =
+  '\nIMPORTANT: The word EXACTLY and the quotation marks above only mark which text to draw. ' +
+  'Do NOT draw the word "EXACTLY" and do NOT draw quotation marks in the image; draw only the text inside them.';
 const IMAGE_QUALITY = '1K';
 const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models';
 
@@ -57,7 +61,7 @@ async function geminiGenerateOne(apiKey, model, prompt) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
     body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
+      contents: [{ parts: [{ text: prompt + PROMPT_SUFFIX }] }],
       generationConfig: { responseModalities: ['IMAGE'], imageConfig: { aspectRatio: '1:1' } },
     }),
   });
@@ -79,7 +83,7 @@ async function geminiGenerateOne(apiKey, model, prompt) {
   return `data:${img.inlineData.mimeType || 'image/jpeg'};base64,${img.inlineData.data}`;
 }
 
-// 生 n 張：同一模型並行呼叫；整批失敗且非安全過濾才換下一個模型
+// 生 n 張：同一模型並行呼叫
 async function geminiGenerate(apiKey, prompt, n) {
   let lastErr = null;
   for (const model of IMAGE_MODELS) {

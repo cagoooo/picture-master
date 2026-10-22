@@ -31,7 +31,7 @@ Made with ♡ by [阿凱老師](https://www.smes.tyc.edu.tw/modules/school/index
 
 ### 生成
 - 4 欄表單（標題 / 對話 / 角色 / 背景）→ 自動合成 prompt
-- Google `gemini-3.1-flash-image`（失敗自動改用 `gemini-3-pro-image`，1024×1024，2 張）
+- Google `gemini-3.1-flash-lite-image`（最便宜的 flash-lite，不使用 pro，1024×1024，2 張）
 - **中文精準渲染**（新一代 Gemini 生圖已能正確寫繁體中文標題與對話框）
 - 🔄 **重新生成**：同設定一鍵再產一輪
 - ✏️ **編輯 prompt 重生**：直接改合成的 prompt 後重生（進階）
@@ -79,7 +79,7 @@ Made with ♡ by [阿凱老師](https://www.smes.tyc.edu.tw/modules/school/index
 
 - **前端**：單檔 `index.html`（內嵌 CSS + vanilla JS, 2000+ 行）→ GitHub Pages
 - **後端**：Firebase Cloud Functions v2 (Node 22) → `picture-master` GCP 專案
-- **圖像 API**：Google Gemini `gemini-3.1-flash-image` → 備援 `gemini-3-pro-image`（1024×1024，輸出 JPEG）
+- **圖像 API**：Google Gemini `gemini-3.1-flash-lite-image`（1024×1024，輸出 JPEG；刻意不設 pro 備援以控制費用）
 - **三層護欄**：
   1. ✅ Cloudflare Turnstile 人機驗證
   2. ✅ Firestore per-IP 每日 5 次配額
@@ -97,10 +97,11 @@ Made with ♡ by [阿凱老師](https://www.smes.tyc.edu.tw/modules/school/index
 | v0.1-0.2 | Google `imagen-4.0-generate-001` | 中文字變日文片假名亂碼 ❌ |
 | v0.2-0.3 | Google `gemini-2.5-flash-image`（Nano Banana） | 中文字仍亂碼 ❌ |
 | v0.4-0.5 | OpenAI `gpt-image-2` | 中文精準渲染 ✅（預付額度用完停用） |
-| v0.6+ | Google `gemini-3.1-flash-image` / `gemini-3-pro-image` | 繁中標題、對話框正確 ✅（2026-10-22 實測） |
+| v0.6+ | Google `gemini-3.1-flash-lite-image` | 繁中標題、對話框正確 ✅（2026-10-22 實測） |
 
 ### 版本歷程
-- **v0.6.0** — 生圖改回 Google Gemini（3.1 Flash Image，備援 3 Pro Image），移除 OpenAI 相依
+- **v0.6.1** — 改用最便宜的 `gemini-3.1-flash-lite-image`，移除 pro 備援
+- **v0.6.0** — 生圖改回 Google Gemini，移除 OpenAI 相依
 - **v0.5.0** — 黑板 × 紙張 Studio UI 全面重做 + A4 列印 + 歷史 + 16 範例
 - **v0.4.1** — 修放大鏡空白 bug → Lightbox modal
 - **v0.4.0** — 換 OpenAI gpt-image-2 修中文亂碼
