@@ -694,6 +694,21 @@
     updateGenerateButton();
   }
 
+  // 按下生成 → 自動帶到「學習單預覽」區（電腦雙欄與手機都要跳，不用螢幕寬度判斷）
+  // 只在預覽區頂端不在畫面上方附近時才捲，避免已經看得到還晃一下
+  function scrollToOutput() {
+    const target = document.querySelector('.paper') || elReady;
+    if (!target) return;
+    const top = target.getBoundingClientRect().top;
+    if (top < 0 || top > 120) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  function scrollToError() {
+    const bar = $('errorbar');
+    if (!bar || bar.style.display === 'none') return;
+    const r = bar.getBoundingClientRect();
+    if (r.top < 0 || r.bottom > window.innerHeight) bar.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
   // 統合 loading 狀態 + 配額判斷 → 按鈕 label / disabled
   function updateGenerateButton() {
     const isLoading = _currentStatus === 'loading';
@@ -1504,6 +1519,7 @@
 
     hideError();
     setStatus('loading');
+    scrollToOutput();
 
     try {
       const prompt = customPrompt || buildPrompt();
@@ -1523,10 +1539,11 @@
       const remain = Math.max(0, DAILY_QUOTA - getQuotaUsed());
       showToast(`已產 ${images.length} 張（今日剩 ${remain} 次）`);
       addToHistory(images, fields).catch((he) => console.warn('history save failed', he));
-      if (window.innerWidth < 1100) elReady.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      scrollToOutput();
     } catch (e) {
       console.error(e);
       showError(e.message || '生成失敗，請稍後再試');
+      scrollToError();
       resetTurnstile();
     }
   }

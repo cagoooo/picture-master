@@ -468,7 +468,7 @@ body::before{
 
 /* ========== Paper (right) ========== */
 .paper-wrap{position:relative;display:flex;flex-direction:column;gap:18px}
-.paper{
+.paper{scroll-margin-top:12px;
   position:relative;
   background:var(--paper);
   color:var(--paper-ink);
