@@ -309,3 +309,18 @@ npm run test
 
 歡迎依教學現場、活動或工作流程需求進行 fork／客製化。建議在變更說明中交代使用情境、主要修改、測試方式，以及是否影響資料格式或部署設定。
 <!-- END:PROJECT_GUIDE -->
+
+<!-- akai-edu-tools:backlink -->
+
+---
+
+## 🔗 阿凱老師教育工具集
+
+這個專案是[阿凱老師教育工具集](https://cagoooo.github.io/Akai/)的 **#99 考試卷生圖 Studio — AI 黑白線稿插圖生成**，由桃園市龍潭區石門國民小學阿凱老師開發。
+
+- 工具介紹頁：[https://cagoooo.github.io/Akai/tool/99/](https://cagoooo.github.io/Akai/tool/99/)
+- 線上使用：[https://cagoooo.github.io/picture-master/](https://cagoooo.github.io/picture-master/)
+- 教學情境文章：[https://cagoooo.github.io/Akai/blog/exam-illustration-99-ai-line-art-studio/](https://cagoooo.github.io/Akai/blog/exam-illustration-99-ai-line-art-studio/)
+- 全部工具（上百個教育工具與原始碼）：[https://cagoooo.github.io/Akai/](https://cagoooo.github.io/Akai/)
+
+想改造成自己的版本？到上面的教學情境文章，按左下角「複製 AI 開發提示詞」，貼給 ChatGPT、Claude、Gemini 等 AI 助手，就能參考這份原始碼開始規劃。
