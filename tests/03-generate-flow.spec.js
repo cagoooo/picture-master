@@ -34,16 +34,10 @@ test.describe('生成流程（本機 mock SVG 模式）', () => {
     await expect(page.locator('#errorbar')).toContainText('角色描述');
   });
 
-  test('配額用滿 → 按鈕變灰', async ({ page }) => {
-    // 用 DevTools 直接塞滿 quota
-    await page.evaluate(() => {
-      const today = 'pm-quota-' + new Date().toISOString().slice(0, 10);
-      localStorage.setItem(today, '5');
-    });
-    await page.reload();
-
-    await expect(page.locator('#btn-generate')).toBeDisabled();
-    await expect(page.locator('#btn-generate-label')).toContainText('額度已用完');
+  test('未登入 → 顯示 Google 登入列（次數改由後端以帳號計算）', async ({ page }) => {
+    await expect(page.locator('#login-gate-out')).toBeVisible();
+    await expect(page.locator('#login-gate-out')).toContainText('請先用 Google 帳號登入才能使用（每人每天 5 次）');
+    await expect(page.locator('#btn-login-gate')).toHaveText('使用 Google 帳號登入');
   });
 
   test('Ctrl+Enter 快捷鍵能在欄位內觸發生成', async ({ page }) => {

@@ -1323,3 +1323,26 @@ body::before{
   .statusbar{padding:14px 16px;font-size:10px}
   .statusbar .right{gap:12px}
 }
+
+/* ===== Google 登入列（必須登入才能生圖）===== */
+.login-gate{margin:18px 0 6px}
+.login-gate-row{
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px 14px;
+  padding:12px 14px;border:1px dashed rgba(240,220,140,.55);border-radius:4px;
+  background:rgba(0,0,0,.18);color:#f3efd8;font-size:15px;line-height:1.5;
+}
+.login-gate-msg{flex:1 1 220px;min-width:0;overflow-wrap:anywhere}
+.login-gate-msg b{color:var(--chalk-yellow, #f5d76e)}
+.btn-login-gate,.btn-logout-gate{
+  flex:0 0 auto;cursor:pointer;border-radius:4px;font-size:14px;font-weight:700;
+  padding:9px 16px;min-height:40px;line-height:1.2;
+}
+.btn-login-gate{background:#fff;color:#1f2937;border:1px solid #d1d5db}
+.btn-login-gate:hover{background:#f3f4f6}
+.btn-logout-gate{background:transparent;color:#f3efd8;border:1px solid rgba(243,239,216,.5)}
+.btn-logout-gate:hover{border-color:var(--chalk-yellow, #f5d76e);color:var(--chalk-yellow, #f5d76e)}
+@media (max-width:680px){
+  .login-gate-row{flex-direction:column;align-items:stretch}
+  .login-gate-msg{flex:0 0 auto}
+  .btn-login-gate,.btn-logout-gate{width:100%}
+}

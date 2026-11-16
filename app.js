@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const VERSION = 'v0.5.0';
+  const VERSION = 'v0.7.0';
   const DAILY_QUOTA = 5;
 
   // 模組級狀態 — 放最上面避免 TDZ（refreshPrompt / refreshQuotaUI 等在 init
@@ -583,16 +583,24 @@
     setTimeout(() => t.remove(), ms);
   }
 
-  // ===== Quota (local, per-day) =====
-  function todayKey() {
-    return 'pm-quota-' + new Date().toISOString().slice(0, 10);
+  // ===== Quota（以後端為準：每位 Google 使用者每天 5 次，台北午夜重置）=====
+  // _serverRemaining 由後端回傳；null = 尚未登入或還沒查到
+  let _serverRemaining = null;
+  let _authUser = null;   // 目前登入的 Google 使用者（非匿名）
+  const LOGIN_GATE_MSG = '🔒 請先用 Google 帳號登入才能使用（每人每天 5 次）';
+  const QUOTA_EXHAUSTED_MSG = '今天的 5 次已用完，明天（台北時間午夜後）再來';
+  function isLoggedIn() {
+    return !!(_authUser && !_authUser.isAnonymous);
   }
   function getQuotaUsed() {
-    return +(localStorage.getItem(todayKey()) || 0);
+    if (_serverRemaining == null) return 0;
+    return Math.max(0, DAILY_QUOTA - _serverRemaining);
   }
-  function incQuota() {
-    localStorage.setItem(todayKey(), getQuotaUsed() + 1);
+  function setServerRemaining(n) {
+    if (typeof n === 'number' && isFinite(n)) _serverRemaining = Math.max(0, Math.min(DAILY_QUOTA, n));
+    refreshQuotaUI();
   }
+  function incQuota() { /* 次數改由後端回傳的 remaining 更新（見 callBackend） */ }
   function refreshQuotaUI() {
     const used = getQuotaUsed();
     const remain = Math.max(0, DAILY_QUOTA - used);
@@ -602,6 +610,9 @@
     // chalkboard quota
     $('quota-remain-text').textContent = remain;
     $('quota-max-text').textContent = DAILY_QUOTA;
+    // 登入列的今日剩餘
+    const gr = $('gate-remain');
+    if (gr) gr.textContent = _serverRemaining == null ? '…' : String(remain);
     // ticks
     const ticks = $('quota-ticks');
     ticks.innerHTML = '';
@@ -715,12 +726,15 @@
     const outOfQuota = getQuotaUsed() >= DAILY_QUOTA;
     const btn = $('btn-generate');
     const lbl = $('btn-generate-label');
-    btn.disabled = isLoading || outOfQuota;
+    const needLogin = !isLoggedIn() && !IS_LOCAL;
+    btn.disabled = isLoading || (outOfQuota && !needLogin);
     lbl.textContent = isLoading
       ? '繪製中…'
-      : outOfQuota
-        ? '今日額度已用完 · 明日再試'
-        : '生成兩張線稿';
+      : needLogin
+        ? '🔒 請先登入 Google 才能生成'
+        : outOfQuota
+          ? '今天的 5 次已用完 · 明天再來'
+          : '生成兩張線稿';
   }
 
   function showError(msg) {
@@ -1263,7 +1277,7 @@
     const warn = $('batch-warn');
     if (need > remain) {
       warn.style.display = '';
-      warn.innerHTML = `⚠ 今日剩 <b>${remain} 次配額</b>，CSV 有 <b>${need} 行</b> → 只能跑前 <b>${remain}</b> 行，超出的會被後端 429 擋下。`;
+      warn.innerHTML = `⚠ 今日剩 <b>${remain} 次</b>，CSV 有 <b>${need} 行</b> → 只能跑前 <b>${remain}</b> 行，超出的會被擋下（每人每天 5 次）。`;
     } else {
       warn.style.display = '';
       warn.innerHTML = `✓ 今日剩 ${remain} 次配額，足夠跑完 ${need} 行。`;
@@ -1315,6 +1329,11 @@
       return;
     }
 
+    if (!isLoggedIn() && !IS_LOCAL) {
+      showError(LOGIN_GATE_MSG);
+      return;
+    }
+
     _batchRunning = true;
     $('batch-run').disabled = true;
     $('batch-results').innerHTML = '';
@@ -1328,7 +1347,7 @@
       try {
         const prompt = buildPromptFromFields(fields);
         const token = await waitForTurnstileToken();
-        const images = await callBackend(prompt, fields, token, _batchN);
+        const images = await callBackend(prompt, fields, token, _batchN, 'batch');
         appendBatchResult({ row: rowNum, status: 'ok', images, fields });
         incQuota(); refreshQuotaUI();
         resetTurnstile();
@@ -1340,7 +1359,7 @@
         failCount++;
         resetTurnstile();
         // 後端 429 → 後面再跑也是 429，提早結束省時間
-        if (/配額已用滿|429/.test(e.message)) {
+        if (/已用完|429/.test(e.message) || e.code === 401) {
           appendBatchResult({ row: '!', status: 'failed', error: `配額已滿，後面 ${valid.length - rowNum} 行跳過`, fields: {} });
           break;
         }
@@ -1405,8 +1424,22 @@
     const userInfoEl = $('user-info');
     const userAvatar = $('user-avatar');
     const userName = $('user-name');
+    const gateOut = $('login-gate-out');
+    const gateIn = $('login-gate-in');
 
     fa.onChange((user) => {
+      // 殘留的匿名身分一律登出，只接受 Google 帳號
+      if (user && user.isAnonymous) { fa.logout().catch(() => {}); user = null; }
+      _authUser = user || null;
+      _serverRemaining = null;
+      if (gateOut && gateIn) {
+        gateOut.style.display = user ? 'none' : '';
+        gateIn.style.display = user ? '' : 'none';
+        const gn = $('gate-name');
+        if (gn) gn.textContent = user ? (user.displayName || user.email || 'Google 使用者') : '';
+      }
+      refreshQuotaUI();
+      if (user) fetchRemaining();
       if (user) {
         btnLogin.style.display = 'none';
         userInfoEl.style.display = '';
@@ -1419,21 +1452,46 @@
       }
     });
 
-    btnLogin.addEventListener('click', async () => {
+    const doLogin = async () => {
       try {
         await fa.login();
-        showToast('✓ Google 登入成功 — 配額改 per-user 計算', 2400);
+        hideError();
+        showToast('✓ Google 登入成功，每人每天 5 次', 2400);
       } catch (e) {
         if (/popup-closed|cancelled/i.test(e?.code || '')) return;
         showError('登入失敗：' + (e?.message || e));
       }
-    });
-    btnLogout.addEventListener('click', async () => {
+    };
+    const doLogout = async () => {
       try {
         await fa.logout();
         showToast('已登出', 1500);
       } catch {}
-    });
+    };
+    btnLogin.addEventListener('click', doLogin);
+    btnLogout.addEventListener('click', doLogout);
+    const gl = $('btn-login-gate');
+    if (gl) gl.addEventListener('click', doLogin);
+    const go = $('btn-logout-gate');
+    if (go) go.addEventListener('click', doLogout);
+  }
+
+  // 登入後向後端查今日剩餘次數（不扣次）
+  async function fetchRemaining() {
+    if (IS_LOCAL || !CFG.BACKEND_URL || !window.firebaseAuth) return;
+    try {
+      const t = await window.firebaseAuth.getToken();
+      if (!t) return;
+      const res = await fetch(CFG.BACKEND_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
+        body: JSON.stringify({ data: { action: 'quota' } }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (res.ok && j?.result) setServerRemaining(j.result.remaining);
+    } catch (e) {
+      console.warn('fetchRemaining failed', e);
+    }
   }
 
   if (window.firebaseAuth) {
@@ -1512,8 +1570,14 @@
       fChar.focus();
       return;
     }
+    if (!isLoggedIn() && !IS_LOCAL) {
+      showError(LOGIN_GATE_MSG);
+      const gate = $('login-gate');
+      if (gate) gate.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
     if (getQuotaUsed() >= DAILY_QUOTA) {
-      showError(`今日配額已用滿（${getQuotaUsed()} / ${DAILY_QUOTA} 次）— 請明日再試`);
+      showError(QUOTA_EXHAUSTED_MSG);
       return;
     }
 
@@ -1530,7 +1594,7 @@
         background: fBg.value.trim(),
       };
       const token = await waitForTurnstileToken();
-      const images = await callBackend(prompt, fields, token);
+      const images = await callBackend(prompt, fields, token, 2, 'generate');
       renderImages(images);
       incQuota();
       refreshQuotaUI();
@@ -1713,7 +1777,7 @@
   }
 
   // ===== Backend Call =====
-  async function callBackend(prompt, fields, turnstileToken, n) {
+  async function callBackend(prompt, fields, turnstileToken, n, feature = 'generate') {
     // n: 1 或 2（批次模式用 1 省配額）
     const imagesN = (n === 1 || n === 2) ? n : 2;
     if (IS_LOCAL) {
@@ -1725,35 +1789,53 @@
     const backendUrl = CFG.BACKEND_URL;
     if (!backendUrl) throw new Error('後端 URL 未設定');
 
-    // 取 Firebase Auth ID token（若使用者已登入）
-    // 後端拿到 token 會切到 per-user 配額；無 token 則 fallback per-IP
-    let userToken = null;
+    // 必須用 Google 帳號登入（匿名不算）；ID Token 放 Authorization: Bearer
+    if (!isLoggedIn()) {
+      const err = new Error(LOGIN_GATE_MSG);
+      err.code = 401;
+      throw err;
+    }
+    let idToken = null;
     try {
-      userToken = window.firebaseAuth ? await window.firebaseAuth.getToken() : null;
-    } catch { /* 拿不到 token 不擋，當匿名 */ }
+      idToken = await window.firebaseAuth.getToken();
+    } catch { /* 下面統一處理 */ }
+    if (!idToken) {
+      const err = new Error('登入已過期，請重新登入');
+      err.code = 401;
+      throw err;
+    }
 
     const res = await fetch(backendUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ data: { prompt, fields, turnstileToken, n: imagesN, userToken } }),
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+      body: JSON.stringify({ data: { prompt, fields, turnstileToken, n: imagesN, feature } }),
     });
 
     let json;
     try { json = await res.json(); }
     catch { throw new Error(`後端錯誤 ${res.status}：回應非 JSON`); }
 
-    // 後端配額爆了（per-IP Firestore quota，整個 IP 共算，比前端 per-browser 嚴格）
-    // → 前端 localStorage 同步拉到上限，按鈕立刻變灰，避免使用者繼續按
+    if (typeof json?.remaining === 'number') setServerRemaining(json.remaining);
+
+    if (res.status === 401) {
+      const err = new Error(json?.error?.message || LOGIN_GATE_MSG);
+      err.code = 401;
+      throw err;
+    }
+    if (res.status === 403) {
+      throw new Error(json?.error?.message || '人機驗證失敗，請重整頁面再試');
+    }
     if (res.status === 429) {
-      localStorage.setItem(todayKey(), String(DAILY_QUOTA));
-      refreshQuotaUI();
-      const backendMsg = json?.error?.message || '配額已用滿';
-      throw new Error(`本 IP 今日配額已用滿（後端記錄）— ${backendMsg}。可能因為同網路其他人也用過。`);
+      setServerRemaining(0);
+      const err = new Error(QUOTA_EXHAUSTED_MSG);
+      err.code = 429;
+      throw err;
     }
 
     if (!res.ok || json.error) {
       throw new Error(json?.error?.message || `後端錯誤 ${res.status}`);
     }
+    if (typeof json.result?.remaining === 'number') setServerRemaining(json.result.remaining);
     return json.result.images;
   }
 

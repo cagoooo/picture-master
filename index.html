@@ -76,7 +76,7 @@
       <span class="pill"><span class="ledot"></span>LIVE · Gemini</span>
       <span>QUOTA · <span id="quota-remain">5</span>/<span id="quota-max">5</span></span>
       <span id="user-area" class="user-area">
-        <button id="btn-login" class="btn-auth" title="Google 登入後，配額不再跟同網路的人共算">🔓 登入</button>
+        <button id="btn-login" class="btn-auth" title="用 Google 帳號登入才能使用（每人每天 5 次）">🔓 登入</button>
         <span id="user-info" style="display:none">
           <img id="user-avatar" class="user-avatar" alt="user">
           <span id="user-name" class="user-name"></span>
@@ -90,7 +90,7 @@
 
   <!-- ===== Hero ===== -->
   <header class="hero">
-    <div class="kicker">Picture Master · <span id="version-tag">v0.6.1</span> · Google Gemini</div>
+    <div class="kicker">Picture Master · <span id="version-tag">v0.7.0</span> · Google Gemini</div>
     <h1>備課時，<br>畫一張剛剛好的<em>學習單插畫</em>。</h1>
     <p class="lede">
       四個欄位、一鍵生成。專門產純黑白線稿，<b>列印不吃墨水</b>，
@@ -160,6 +160,17 @@
                 <button id="btn-batch-mode" class="btn-batch" type="button" title="上傳 CSV 一次生 N 張">📊 批次模式</button>
               </div>
               <div id="my-templates-chips" class="my-templates-chips"><!-- JS 注入 --></div>
+            </div>
+          </div>
+
+          <div id="login-gate" class="login-gate" aria-live="polite">
+            <div id="login-gate-out" class="login-gate-row">
+              <span class="login-gate-msg">🔒 請先用 Google 帳號登入才能使用（每人每天 5 次）</span>
+              <button id="btn-login-gate" class="btn-login-gate" type="button">使用 Google 帳號登入</button>
+            </div>
+            <div id="login-gate-in" class="login-gate-row" style="display:none">
+              <span class="login-gate-msg">👋 <b id="gate-name"></b>　今日剩餘 <b id="gate-remain">…</b> / 5 次</span>
+              <button id="btn-logout-gate" class="btn-logout-gate" type="button">登出</button>
             </div>
           </div>
 
@@ -300,7 +311,7 @@
         <li><span class="n">01</span><span>學習單、試卷需要插圖，但找不到合適的免費圖？<b>輸入幾個字一鍵生成。</b></span></li>
         <li><span class="n">02</span><span>產出純黑白線稿風，<b>列印不吃墨水</b>，也適合學生著色或補充細節。</span></li>
         <li><span class="n">03</span><span>支援大標題＋對話氣泡，做<b>漫畫式情境題、英文對話練習</b>都好用。</span></li>
-        <li><span class="n">04</span><span>免註冊免登入，每天 5 次免費額度（每次 2 張，共 10 張）。</span></li>
+        <li><span class="n">04</span><span>用 Google 帳號登入即可使用，每人每天 5 次（每次 2 張，共 10 張），台北時間午夜重置。</span></li>
       </ul>
     </div>
     <div class="col">
@@ -316,7 +327,7 @@
 
   <!-- ===== Footer ===== -->
   <footer class="footer">
-    <span>© 2026 · 試卷生圖 STUDIO · <span id="version-tag-footer">v0.6.1</span></span>
+    <span>© 2026 · 試卷生圖 STUDIO · <span id="version-tag-footer">v0.7.0</span></span>
     <span class="heart">Made with ♡ by
       <a href="https://www.smes.tyc.edu.tw/modules/school/index.php?department_id=2&zone_id=0&page_id=2&content_id=11&type=news&from_op=all_news#a5"
          target="_blank" rel="noopener">阿凱老師</a>

@@ -80,16 +80,17 @@ Made with ♡ by [阿凱老師](https://www.smes.tyc.edu.tw/modules/school/index
 - **前端**：單檔 `index.html`（內嵌 CSS + vanilla JS, 2000+ 行）→ GitHub Pages
 - **後端**：Firebase Cloud Functions v2 (Node 22) → `picture-master` GCP 專案
 - **圖像 API**：Google Gemini `gemini-3.1-flash-lite-image`（1024×1024，輸出 JPEG；刻意不設 pro 備援以控制費用）
-- **三層護欄**：
-  1. ✅ Cloudflare Turnstile 人機驗證
-  2. ✅ Firestore per-IP 每日 5 次配額
-  3. ✅ Cloud Functions `maxInstances=5`
-- **管理員通知**：LINE Flex Message 卡片（started / success / failed / warning）
+- **四層護欄**（順序固定）：
+  1. ✅ 必須 Google 帳號登入（後端 `verifyIdToken`，拒絕匿名，未登入回 401）
+  2. ✅ Cloudflare Turnstile 人機驗證
+  3. ✅ 每位使用者每天 5 次（Firestore transaction，`rateLimits/user_<uid>_<台北日期>`，台北午夜重置；生圖失敗退回次數；超過回 429）
+  4. ✅ Cloud Functions `maxInstances=3`
+- **管理員通知**：LINE Flex Message 卡片（success / failed / warning）＋ Google Chat 每次使用都通知（成功／失敗／被擋，被擋同 IP 每 5 分鐘最多 1 則）
 - **版本偵測**：Service Worker `BUILD_VERSION` 注入 + 雙線 banner 通知（lifecycle + version.json polling）
 
-### 前後端配額同步
-前端 localStorage 算 per-browser，後端 Firestore 算 per-IP。
-**收到 backend 429 → 前端自動拉滿 localStorage + 按鈕變灰**，避免使用者陷死循環。
+### 前後端次數同步
+次數只以後端為準：登入後前端以 `{action:'quota'}` 查今日剩餘，每次生成的回應也會帶 `remaining`。
+收到 429 → 顯示「今天的 5 次已用完，明天（台北時間午夜後）再來」並把按鈕變灰。
 
 ### 圖像模型演進史
 | 版本 | 模型 | 結果 |
@@ -100,6 +101,7 @@ Made with ♡ by [阿凱老師](https://www.smes.tyc.edu.tw/modules/school/index
 | v0.6+ | Google `gemini-3.1-flash-lite-image` | 繁中標題、對話框正確 ✅（2026-10-22 實測） |
 
 ### 版本歷程
+- **v0.7.0** — AI 生圖改為必須 Google 登入、每人每天 5 次（台北午夜重置）、每次使用發 Google Chat 通知
 - **v0.6.1** — 改用最便宜的 `gemini-3.1-flash-lite-image`，移除 pro 備援
 - **v0.6.0** — 生圖改回 Google Gemini，移除 OpenAI 相依
 - **v0.5.0** — 黑板 × 紙張 Studio UI 全面重做 + A4 列印 + 歷史 + 16 範例
@@ -184,14 +186,14 @@ gh workflow run "Deploy to GitHub Pages" -R cagoooo/picture-master
 
 `deploy.yml` 會自動把 `PLACEHOLDER_NOT_CONFIGURED` 替換成真實 site key。
 
-### 2. Firestore per-IP 配額（每日 5 次）
+### 2. 每人每天 5 次（Google 登入後以 uid 計）
 
-`functions/index.js` 寫死 `DAILY_QUOTA = 5`。每次成功生成在
-`quota/{YYYY-MM-DD}_{ipHash}` doc 加 1。`>= 5` 直接 429。
+`functions/index.js` 寫死 `DAILY_QUOTA = 5`。通過登入與 Turnstile 後，用 transaction 在
+`rateLimits/user_<uid>_<台北日期>` 預扣 1 次，`>= 5` 直接 429；Gemini 失敗會退回。
 
-### 3. Cloud Functions maxInstances=5
+### 3. Cloud Functions maxInstances=3
 
-`functions/index.js` 用 `onRequest({ maxInstances: 5 })` 限制平行實例上限，
+`functions/index.js` 用 `onRequest({ maxInstances: 3 })` 限制平行實例上限，
 極端攻擊下也不會 quota 失控。
 
 ## 💰 計費 + 熔斷
