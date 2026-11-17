@@ -101,6 +101,7 @@ Made with ♡ by [阿凱老師](https://cagoooo.github.io/Akai/) @ 桃園市龍�
 | v0.6+ | Google `gemini-3.1-flash-lite-image` | 繁中標題、對話框正確 ✅（2026-10-22 實測） |
 
 ### 版本歷程
+- **v0.7.1** — 立即更新只清除本工具的快取，不再影響同網域其他工具
 - **v0.7.0** — AI 生圖改為必須 Google 登入、每人每天 5 次（台北午夜重置）、每次使用發 Google Chat 通知
 - **v0.6.1** — 改用最便宜的 `gemini-3.1-flash-lite-image`，移除 pro 備援
 - **v0.6.0** — 生圖改回 Google Gemini，移除 OpenAI 相依

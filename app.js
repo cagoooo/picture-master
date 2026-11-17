@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const VERSION = 'v0.7.0';
+  const VERSION = 'v0.7.1';
   const DAILY_QUOTA = 5;
 
   // 模組級狀態 — 放最上面避免 TDZ（refreshPrompt / refreshQuotaUI 等在 init
@@ -67,8 +67,11 @@
       document.body.appendChild(banner);
       document.getElementById('sw-reload-btn').onclick = async () => {
         try {
+          // 同網域（cagoooo.github.io）所有工具共用快取空間，只清本工具自己的
+          const ownScope = new URL('./', location.href).href;
+          const isOwnCache = (k) => k.startsWith('picture-master-') || k.includes(ownScope);
           const keys = await caches.keys();
-          await Promise.all(keys.map((k) => caches.delete(k)));
+          await Promise.all(keys.filter(isOwnCache).map((k) => caches.delete(k)));
         } catch {}
         location.reload();
       };
