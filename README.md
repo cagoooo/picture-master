@@ -8,7 +8,7 @@
 
 ![試卷生圖 Studio](og-image.png)
 
-Made with ♡ by [阿凱老師](https://www.smes.tyc.edu.tw/modules/school/index.php?department_id=2&zone_id=0&page_id=2&content_id=11&type=news&from_op=all_news#a5) @ 桃園市龍潭區石門國民小學
+Made with ♡ by [阿凱老師](https://cagoooo.github.io/Akai/) @ 桃園市龍潭區石門國民小學
 
 ## 🎯 能做什麼
 
@@ -244,7 +244,7 @@ picture/
 
 ## 📜 授權
 
-Made with ❤️ by [阿凱老師](https://www.smes.tyc.edu.tw/modules/school/index.php?department_id=2&zone_id=0&page_id=2&content_id=11&type=news&from_op=all_news#a5)
+Made with ❤️ by [阿凱老師](https://cagoooo.github.io/Akai/)
 @ 桃園市龍潭區石門國民小學
 
 圖像由 Google Gemini 生成 · 程式碼 MIT License
