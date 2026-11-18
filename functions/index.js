@@ -7,7 +7,8 @@
  *   3. Enforces per-user 5/day quota (Taipei date, Firestore transaction, refunded on Gemini failure)
  *   3. Calls Gemini gemini-3.1-flash-lite-image (cheapest; no pro fallback by design)
  *   4. Returns 1-2 images as data URIs (Gemini returns JPEG)
- *   5. Pushes admin LINE Flex card on started / success / failed (best-effort, fail-open)
+ *   5. Google Chat on every use / block / failure; admin LINE Flex card ONLY on failure
+ *      (shared LINE OA, 200 msgs/month free; success & quota-exhausted are Chat-only)
  *
  * Model history:
  *   v0.2-0.3 gemini-2.5-flash-image garbled CJK → v0.4 switched to OpenAI gpt-image-2.
@@ -453,7 +454,7 @@ exports.generateImage = onRequest(
     const ipHash = crypto.createHash('sha256').update(ip).digest('hex').slice(0, 16);
     const today = taipeiDate();
 
-    // LINE 卡片（維持原樣：含使用者輸入摘要）
+    // LINE 卡片欄位（只在失敗時推 LINE；含使用者輸入摘要）
     const trim = (s, n) => (s || '').toString().substring(0, n);
     const cardFields = [
       { icon: '📌', label: '標題', value: trim(title, 40) || '（無）' },
@@ -542,18 +543,8 @@ exports.generateImage = onRequest(
         remaining = await reserveQuota(user, today);
         reserved = true;
       } catch (e) {
-        if (e instanceof HttpError && e.kind === 'quota') {
-          // LINE 原有的額度用完卡片（維持原樣）
-          await notifyAdminCard({
-            status: 'warning',
-            title: '使用者額度已用完',
-            appName: APP_NAME,
-            fields: [
-              { icon: '🔑', label: 'IP', value: ipHash },
-              { icon: '📊', label: '今日', value: `${DAILY_QUOTA} / ${DAILY_QUOTA}` },
-            ],
-          });
-        }
+        // 額度用完只發 Google Chat（由 blocked() 處理），不推 LINE：
+        // 所有網站共用同一個 LINE 官方帳號，每月 200 則留給錯誤告警
         throw e;
       }
 
@@ -646,18 +637,7 @@ exports.generateImage = onRequest(
         dayKey: today,
       });
 
-      await notifyAdminCard({
-        status: 'success',
-        title: '生成成功',
-        appName: APP_NAME,
-        fields: [
-          ...cardFields,
-          { icon: '🤖', label: '模型', value: `${usedModel} (${IMAGE_QUALITY})` },
-          { icon: '🖼️', label: '張數', value: `${images.length} 張` },
-          { icon: '📊', label: '今日', value: `${DAILY_QUOTA - remaining} / ${DAILY_QUOTA}` },
-        ],
-        footerNote: `⏱️ ${elapsed}s`,
-      });
+      // 成功只發 Google Chat，不推 LINE（LINE 月額度 200 則留給失敗告警）
       await notifyChat({
         icon: '✅', title: `有人使用了 ${APP_NAME}`,
         fields: [
