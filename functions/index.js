@@ -100,7 +100,8 @@ async function geminiGenerate(apiKey, prompt, n) {
   }
   throw lastErr || new Error('Gemini 無圖回傳');
 }
-const IMAGES_PER_CALL = 2;
+// 2026-11-18 省錢：每次生圖固定 1 張（原本 2 張，費用依張數計，改 1 張直接減半）。
+const IMAGES_PER_CALL = 1;
 
 const ALLOWED_ORIGINS = [
   'https://cagoooo.github.io',
@@ -440,8 +441,8 @@ exports.generateImage = onRequest(
     const payload = req.body?.data || req.body || {};
     const { prompt, turnstileToken, fields = {} } = payload;
     const { title = '', character = '', dialogue = '', background = '' } = fields;
-    const reqN = Number(payload.n);
-    const imagesPerCall = (reqN === 1 || reqN === 2) ? reqN : IMAGES_PER_CALL;
+    // 不論前端傳幾張，一律只生 IMAGES_PER_CALL 張（避免繞過網頁要求多張）
+    const imagesPerCall = IMAGES_PER_CALL;
     const feature = featureLabel(payload.feature);
     const topic = cleanText(title, 30) || '（無標題）';
 

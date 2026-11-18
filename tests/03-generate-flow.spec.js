@@ -12,7 +12,7 @@ test.describe('生成流程（本機 mock SVG 模式）', () => {
     await page.reload();
   });
 
-  test('填欄位 → 點生成 → 2 張 mock 圖出現', async ({ page }) => {
+  test('填欄位 → 點生成 → 1 張 mock 圖出現', async ({ page }) => {
     await page.fill('#f-character', 'E2E 測試角色');
     await page.click('#btn-generate');
 
@@ -20,7 +20,7 @@ test.describe('生成流程（本機 mock SVG 模式）', () => {
     await page.waitForSelector('#output-ready .img-card', { state: 'visible', timeout: 8000 });
 
     const cards = await page.locator('#output-ready .img-card').count();
-    expect(cards).toBe(2);
+    expect(cards).toBe(1);
 
     // 列印工具列應該出現
     await expect(page.locator('#print-toolbar')).toBeVisible();
@@ -45,6 +45,6 @@ test.describe('生成流程（本機 mock SVG 模式）', () => {
     await page.locator('#f-character').press('Control+Enter');
     await page.waitForSelector('#output-ready .img-card', { state: 'visible', timeout: 8000 });
     const cards = await page.locator('#output-ready .img-card').count();
-    expect(cards).toBe(2);
+    expect(cards).toBe(1);
   });
 });

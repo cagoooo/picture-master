@@ -737,7 +737,7 @@
         ? '🔒 請先登入 Google 才能生成'
         : outOfQuota
           ? '今天的 5 次已用完 · 明天再來'
-          : '生成兩張線稿';
+          : '生成一張線稿';
   }
 
   function showError(msg) {
@@ -934,7 +934,7 @@
     fBg.value    = e.background || '';
     refreshPrompt();
     hideError();
-    showToast('已載入欄位 — 按「生成兩張線稿」可重產');
+    showToast('已載入欄位 — 按「生成一張線稿」可重產');
     // 滾到 chalkboard
     document.querySelector('.board')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
@@ -1402,7 +1402,7 @@
   });
 
   $('batch-n').addEventListener('change', (e) => {
-    _batchN = e.target.value === '2' ? 2 : 1;
+    _batchN = 1;
   });
 
   $('batch-run').addEventListener('click', runBatch);
@@ -1781,8 +1781,8 @@
 
   // ===== Backend Call =====
   async function callBackend(prompt, fields, turnstileToken, n, feature = 'generate') {
-    // n: 1 或 2（批次模式用 1 省配額）
-    const imagesN = (n === 1 || n === 2) ? n : 2;
+    // 2026-11-18 起每次固定 1 張（後端也強制 1 張）
+    const imagesN = 1;
     if (IS_LOCAL) {
       await new Promise((r) => setTimeout(r, 1500));
       const mocks = [makeMockSVG(prompt, 1), makeMockSVG(prompt, 2)];

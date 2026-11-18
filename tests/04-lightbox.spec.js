@@ -20,12 +20,13 @@ test.describe('Lightbox 放大鏡 + 左右切換', () => {
     await expect(page.locator('#lightbox-caption')).toContainText('01');
   });
 
-  test('按 → 切到下一張，← 回上一張', async ({ page }) => {
+  // 2026-11-18 起每次只生 1 張：左右切換鍵按了要停在第 1 張
+  test('只有 1 張時按 → ← 仍停在第 1 張', async ({ page }) => {
     await page.locator('#output-ready .img-card').first().click();
     await expect(page.locator('#lightbox-caption')).toContainText('01');
 
     await page.keyboard.press('ArrowRight');
-    await expect(page.locator('#lightbox-caption')).toContainText('02');
+    await expect(page.locator('#lightbox-caption')).toContainText('01');
 
     await page.keyboard.press('ArrowLeft');
     await expect(page.locator('#lightbox-caption')).toContainText('01');
@@ -39,16 +40,9 @@ test.describe('Lightbox 放大鏡 + 左右切換', () => {
     await expect(page.locator('#lightbox.open')).not.toBeVisible();
   });
 
-  test('第一張時 ‹ 鈕 disabled、第二張時 › 鈕 disabled', async ({ page }) => {
+  test('只有 1 張時 ‹ › 鈕都 disabled', async ({ page }) => {
     await page.locator('#output-ready .img-card').first().click();
-
-    // 第一張
     await expect(page.locator('#lb-prev')).toBeDisabled();
-    await expect(page.locator('#lb-next')).toBeEnabled();
-
-    // 切到第二張
-    await page.click('#lb-next');
-    await expect(page.locator('#lb-prev')).toBeEnabled();
     await expect(page.locator('#lb-next')).toBeDisabled();
   });
 });

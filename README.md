@@ -12,7 +12,7 @@ Made with ♡ by [阿凱老師](https://cagoooo.github.io/Akai/) @ 桃園市龍�
 
 ## 🎯 能做什麼
 
-四欄輸入 → Google Gemini 生圖 →「黑白線稿 × 2 張」→ 一鍵列印 A4 學習單。
+四欄輸入 → Google Gemini 生圖 →「黑白線稿 × 1 張」→ 一鍵列印 A4 學習單。
 專為國小老師備課設計：**列印不吃墨水 · 中文精準渲染 · 著色頁直接用**。
 
 ```
@@ -23,7 +23,7 @@ Made with ♡ by [阿凱老師](https://cagoooo.github.io/Akai/) @ 桃園市龍�
 │ 角色描述 *必填*        │         │ ║   生成中的 SVG   ║ │
 │ 背景場景（選填）       │         │ ║                  ║ │
 │ 範例 6 類 16 個        │         │ ╚══════════════════╝ │
-│ [✦ 生成兩張線稿 ✦]    │         │ 🖨 列印 A4 學習單   │
+│ [✦ 生成一張線稿 ✦]    │         │ 🖨 列印 A4 學習單   │
 └────────────────────────┘         └─────────────────────┘
 ```
 
@@ -31,7 +31,7 @@ Made with ♡ by [阿凱老師](https://cagoooo.github.io/Akai/) @ 桃園市龍�
 
 ### 生成
 - 4 欄表單（標題 / 對話 / 角色 / 背景）→ 自動合成 prompt
-- Google `gemini-3.1-flash-lite-image`（最便宜的 flash-lite，不使用 pro，1024×1024，2 張）
+- Google `gemini-3.1-flash-lite-image`（最便宜的 flash-lite，不使用 pro，1024×1024，每次 1 張）
 - **中文精準渲染**（新一代 Gemini 生圖已能正確寫繁體中文標題與對話框）
 - 🔄 **重新生成**：同設定一鍵再產一輪
 - ✏️ **編輯 prompt 重生**：直接改合成的 prompt 後重生（進階）
@@ -200,7 +200,7 @@ gh workflow run "Deploy to GitHub Pages" -R cagoooo/picture-master
 ## 💰 計費 + 熔斷
 
 Google Gemini 生圖（費用依 Google 官方價目表，掛在 `picture-master` 專案帳單）
-- 每次生 2 張（批次模式 1 張）
+- 每次生 1 張（2026-11-18 起，為省費用由 2 張改 1 張）
 - 每 IP / 每帳號每日 5 次上限
 - 加 `maxInstances=5` 阻止 quota 失控
 - GCP 端已設每模型每日請求上限 2000 次（`generate_requests_per_model_per_day`）

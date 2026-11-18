@@ -239,7 +239,7 @@
           <div class="cta">
             <button id="btn-generate" class="btn-generate" title="快捷鍵：Ctrl+Enter">
               <span class="star">✦</span>
-              <span id="btn-generate-label">生成兩張線稿</span>
+              <span id="btn-generate-label">生成一張線稿</span>
               <span class="star">✦</span>
             </button>
             <button id="btn-clear" class="btn-clear" type="button" title="快捷鍵：E">擦掉</button>
@@ -371,7 +371,7 @@
         <li><span class="n">01</span><span>學習單、試卷需要插圖，但找不到合適的免費圖？<b>輸入幾個字一鍵生成。</b></span></li>
         <li><span class="n">02</span><span>產出純黑白線稿風，<b>列印不吃墨水</b>，也適合學生著色或補充細節。</span></li>
         <li><span class="n">03</span><span>支援大標題＋對話氣泡，做<b>漫畫式情境題、英文對話練習</b>都好用。</span></li>
-        <li><span class="n">04</span><span>用 Google 帳號登入即可使用，每人每天 5 次（每次 2 張，共 10 張），台北時間午夜重置。</span></li>
+        <li><span class="n">04</span><span>用 Google 帳號登入即可使用，每人每天 5 次（每次 1 張），台北時間午夜重置。</span></li>
       </ul>
     </div>
     <div class="col">
@@ -462,8 +462,7 @@
       <p class="batch-intro">
         上傳 CSV 檔（標頭：<code>title,character,dialogue,background</code>），
         系統會逐筆送 Gemini 生圖。<br>
-        每行用 <b>1 張</b> 省配額（10 行剛好打滿今日 5 次配額 × 2 倍效率），
-        或選 <b>2 張</b> 拿變體。
+        每行生 <b>1 張</b>，每行算 1 次，每人每天最多 5 次。
       </p>
 
       <div class="batch-step">
@@ -476,8 +475,7 @@
         <span class="step-num">2.</span>
         <label>每行幾張：
           <select id="batch-n">
-            <option value="1" selected>1 張 / 行（省配額）</option>
-            <option value="2">2 張 / 行（拿變體）</option>
+            <option value="1" selected>1 張 / 行</option>
           </select>
         </label>
       </div>
