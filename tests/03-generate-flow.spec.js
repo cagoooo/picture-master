@@ -36,7 +36,7 @@ test.describe('生成流程（本機 mock SVG 模式）', () => {
 
   test('未登入 → 顯示 Google 登入列（次數改由後端以帳號計算）', async ({ page }) => {
     await expect(page.locator('#login-gate-out')).toBeVisible();
-    await expect(page.locator('#login-gate-out')).toContainText('請先用 Google 帳號登入才能使用（每人每天 5 次）');
+    await expect(page.locator('#login-gate-out')).toContainText('請先用 Google 帳號登入才能使用（每人每天 3 次）');
     await expect(page.locator('#btn-login-gate')).toHaveText('使用 Google 帳號登入');
   });
 

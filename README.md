@@ -83,14 +83,14 @@ Made with ♡ by [阿凱老師](https://cagoooo.github.io/Akai/) @ 桃園市龍�
 - **四層護欄**（順序固定）：
   1. ✅ 必須 Google 帳號登入（後端 `verifyIdToken`，拒絕匿名，未登入回 401）
   2. ✅ Cloudflare Turnstile 人機驗證
-  3. ✅ 每位使用者每天 5 次（Firestore transaction，`rateLimits/user_<uid>_<台北日期>`，台北午夜重置；生圖失敗退回次數；超過回 429）
+  3. ✅ 每位使用者每天 3 次（Firestore transaction，`rateLimits/user_<uid>_<台北日期>`，台北午夜重置；生圖失敗退回次數；超過回 429）
   4. ✅ Cloud Functions `maxInstances=3`
 - **管理員通知**：LINE Flex Message 卡片（success / failed / warning）＋ Google Chat 每次使用都通知（成功／失敗／被擋，被擋同 IP 每 5 分鐘最多 1 則）
 - **版本偵測**：Service Worker `BUILD_VERSION` 注入 + 雙線 banner 通知（lifecycle + version.json polling）
 
 ### 前後端次數同步
 次數只以後端為準：登入後前端以 `{action:'quota'}` 查今日剩餘，每次生成的回應也會帶 `remaining`。
-收到 429 → 顯示「今天的 5 次已用完，明天（台北時間午夜後）再來」並把按鈕變灰。
+收到 429 → 顯示「今天的 3 次已用完，明天（台北時間午夜後）再來」並把按鈕變灰。
 
 ### 圖像模型演進史
 | 版本 | 模型 | 結果 |
@@ -101,6 +101,7 @@ Made with ♡ by [阿凱老師](https://cagoooo.github.io/Akai/) @ 桃園市龍�
 | v0.6+ | Google `gemini-3.1-flash-lite-image` | 繁中標題、對話框正確 ✅（2026-10-22 實測） |
 
 ### 版本歷程
+- **v0.7.2** — 每人每天 AI 生圖由 5 次下修為 3 次（前後端一致）
 - **v0.7.1** — 立即更新只清除本工具的快取，不再影響同網域其他工具
 - **v0.7.0** — AI 生圖改為必須 Google 登入、每人每天 5 次（台北午夜重置）、每次使用發 Google Chat 通知
 - **v0.6.1** — 改用最便宜的 `gemini-3.1-flash-lite-image`，移除 pro 備援
@@ -187,10 +188,10 @@ gh workflow run "Deploy to GitHub Pages" -R cagoooo/picture-master
 
 `deploy.yml` 會自動把 `PLACEHOLDER_NOT_CONFIGURED` 替換成真實 site key。
 
-### 2. 每人每天 5 次（Google 登入後以 uid 計）
+### 2. 每人每天 3 次（Google 登入後以 uid 計）
 
-`functions/index.js` 寫死 `DAILY_QUOTA = 5`。通過登入與 Turnstile 後，用 transaction 在
-`rateLimits/user_<uid>_<台北日期>` 預扣 1 次，`>= 5` 直接 429；Gemini 失敗會退回。
+`functions/index.js` 寫死 `DAILY_QUOTA = 3`。通過登入與 Turnstile 後，用 transaction 在
+`rateLimits/user_<uid>_<台北日期>` 預扣 1 次，`>= 3` 直接 429；Gemini 失敗會退回。
 
 ### 3. Cloud Functions maxInstances=3
 
@@ -201,7 +202,7 @@ gh workflow run "Deploy to GitHub Pages" -R cagoooo/picture-master
 
 Google Gemini 生圖（費用依 Google 官方價目表，掛在 `picture-master` 專案帳單）
 - 每次生 1 張（2026-11-18 起，為省費用由 2 張改 1 張）
-- 每 IP / 每帳號每日 5 次上限
+- 每帳號每日 3 次上限（2026-11-19 由 5 次下修）
 - 加 `maxInstances=5` 阻止 quota 失控
 - GCP 端已設每模型每日請求上限 2000 次（`generate_requests_per_model_per_day`）
 - Google AI Studio 端有專案每月花費上限（Spend cap），到 https://aistudio.google.com 帳務頁調整

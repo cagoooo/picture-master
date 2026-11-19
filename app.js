@@ -2,7 +2,7 @@
   'use strict';
 
   const VERSION = 'v0.7.1';
-  const DAILY_QUOTA = 5;
+  const DAILY_QUOTA = 3;
 
   // 模組級狀態 — 放最上面避免 TDZ（refreshPrompt / refreshQuotaUI 等在 init
   // 階段就會跑，引用任何 let X 都會炸 ReferenceError）
@@ -586,12 +586,12 @@
     setTimeout(() => t.remove(), ms);
   }
 
-  // ===== Quota（以後端為準：每位 Google 使用者每天 5 次，台北午夜重置）=====
+  // ===== Quota（以後端為準：每位 Google 使用者每天 3 次，台北午夜重置）=====
   // _serverRemaining 由後端回傳；null = 尚未登入或還沒查到
   let _serverRemaining = null;
   let _authUser = null;   // 目前登入的 Google 使用者（非匿名）
-  const LOGIN_GATE_MSG = '🔒 請先用 Google 帳號登入才能使用（每人每天 5 次）';
-  const QUOTA_EXHAUSTED_MSG = '今天的 5 次已用完，明天（台北時間午夜後）再來';
+  const LOGIN_GATE_MSG = '🔒 請先用 Google 帳號登入才能使用（每人每天 3 次）';
+  const QUOTA_EXHAUSTED_MSG = '今天的 3 次已用完，明天（台北時間午夜後）再來';
   function isLoggedIn() {
     return !!(_authUser && !_authUser.isAnonymous);
   }
@@ -736,7 +736,7 @@
       : needLogin
         ? '🔒 請先登入 Google 才能生成'
         : outOfQuota
-          ? '今天的 5 次已用完 · 明天再來'
+          ? '今天的 3 次已用完 · 明天再來'
           : '生成一張線稿';
   }
 
@@ -1280,7 +1280,7 @@
     const warn = $('batch-warn');
     if (need > remain) {
       warn.style.display = '';
-      warn.innerHTML = `⚠ 今日剩 <b>${remain} 次</b>，CSV 有 <b>${need} 行</b> → 只能跑前 <b>${remain}</b> 行，超出的會被擋下（每人每天 5 次）。`;
+      warn.innerHTML = `⚠ 今日剩 <b>${remain} 次</b>，CSV 有 <b>${need} 行</b> → 只能跑前 <b>${remain}</b> 行，超出的會被擋下（每人每天 3 次）。`;
     } else {
       warn.style.display = '';
       warn.innerHTML = `✓ 今日剩 ${remain} 次配額，足夠跑完 ${need} 行。`;
@@ -1459,7 +1459,7 @@
       try {
         await fa.login();
         hideError();
-        showToast('✓ Google 登入成功，每人每天 5 次', 2400);
+        showToast('✓ Google 登入成功，每人每天 3 次', 2400);
       } catch (e) {
         if (/popup-closed|cancelled/i.test(e?.code || '')) return;
         showError('登入失敗：' + (e?.message || e));

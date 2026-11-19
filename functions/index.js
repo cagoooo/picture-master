@@ -4,7 +4,7 @@
  * generateImage: callable HTTP endpoint that:
  *   1. Requires Google sign-in (Bearer ID token, anonymous rejected) → 401
  *   2. Verifies Cloudflare Turnstile token (after login, before quota)
- *   3. Enforces per-user 5/day quota (Taipei date, Firestore transaction, refunded on Gemini failure)
+ *   3. Enforces per-user 3/day quota (Taipei date, Firestore transaction, refunded on Gemini failure)
  *   3. Calls Gemini gemini-3.1-flash-lite-image (cheapest; no pro fallback by design)
  *   4. Returns 1-2 images as data URIs (Gemini returns JPEG)
  *   5. Google Chat on every use / block / failure; admin LINE Flex card ONLY on failure
@@ -46,7 +46,7 @@ const TURNSTILE_SECRET = defineSecret('TURNSTILE_SECRET');
 const PICTURE_LINE_CHANNEL_ACCESS_TOKEN = defineSecret('PICTURE_LINE_CHANNEL_ACCESS_TOKEN');
 const PICTURE_LINE_ADMIN_USER_ID = defineSecret('PICTURE_LINE_ADMIN_USER_ID');
 
-const DAILY_QUOTA = 5;
+const DAILY_QUOTA = 3;
 const PLACEHOLDER = 'PLACEHOLDER_NOT_CONFIGURED';
 const APP_NAME = '試卷出題配圖生成大師';
 // 只用最便宜的 flash-lite；不要加 pro 當備援（費用考量，使用者明確要求）
@@ -233,7 +233,7 @@ async function notifyAdminCard(card) {
 }
 
 // ──────────────────────────────────────────────────────────────────
-// Google 登入門禁 + 每人每天 5 次 + Google Chat 通知（2026-11-16）
+// Google 登入門禁 + 每人每天 3 次 + Google Chat 通知（2026-11-16）
 // 順序固定：登入 → Turnstile → 扣每日次數 → Gemini（失敗退回次數）
 // ──────────────────────────────────────────────────────────────────
 
@@ -256,7 +256,7 @@ function taipeiDate(d = new Date()) {
 
 async function requireGoogleUser(req) {
   const m = (req.get('Authorization') || '').match(/^Bearer (.+)$/);
-  if (!m) throw new HttpError(401, '請先用 Google 帳號登入才能使用（每人每天 5 次）', 'auth');
+  if (!m) throw new HttpError(401, '請先用 Google 帳號登入才能使用（每人每天 3 次）', 'auth');
   let decoded;
   try {
     decoded = await adminAuth.verifyIdToken(m[1]);
@@ -264,7 +264,7 @@ async function requireGoogleUser(req) {
     throw new HttpError(401, '登入已過期，請重新登入', 'auth');
   }
   if (decoded.firebase?.sign_in_provider === 'anonymous') {
-    throw new HttpError(401, '請先用 Google 帳號登入才能使用（每人每天 5 次）', 'auth');
+    throw new HttpError(401, '請先用 Google 帳號登入才能使用（每人每天 3 次）', 'auth');
   }
   return {
     uid: decoded.uid,
